@@ -7,6 +7,7 @@ Supported methods:
     'lda'            — StandardScaler + PCA + LDA
     'ssvep'          — Single-band CCA
     'fbcca'          — Filter-Bank CCA
+    'csp'            — Common Spatial Pattern + LDA (motor imagery)
     'cnn'            — 2D CNN (PyTorch)
     'transformer'    — GPT-style causal + RoPE
     'transformer_bert' — BERT-style bidirectional + CLS
@@ -55,6 +56,7 @@ _registry['cnn'] = _lazy('bci.decoder.deep', 'CNNDecoder')
 _registry['transformer'] = _lazy('bci.decoder.transformer', 'TransformerDecoder')
 _registry['transformer_bert'] = _lazy('bci.decoder.transformer_bert',
                                        'TransformerBertDecoder')
+_registry['csp'] = _lazy('bci.decoder.csp', 'CSPDecoder')
 
 
 def list_methods() -> List[str]:

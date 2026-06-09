@@ -1,7 +1,7 @@
 """
 Processor Module
 ================
-Online (streaming) signal processors for real-time EEG.
+Online (streaming) signal processor for real-time EEG.
 """
 from .online import OnlineProcessor
 

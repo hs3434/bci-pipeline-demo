@@ -42,43 +42,46 @@ class LoadWorker(QThread):
 class BatchWorker(QThread):
     """Background pipeline execution worker (offline batch mode).
 
-    Emits progress: 0=start, 20=load done, 50=preproc done,
-    70=epoch done, 100=decode done.
+    Accepts an optional BCIPipeline instance — when provided the pipeline's
+    internal state is reused so only steps whose parameters changed are
+    re-executed.
+
+    Emits progress: 0=start, 100=done.
     finished emits (PipelineResult, BCIPipeline).
     """
     progress = pyqtSignal(int)
     log = pyqtSignal(str)
     finished = pyqtSignal(object, object)
+    steps_skipped = pyqtSignal(list)
     error = pyqtSignal(str)
 
-    def __init__(self, filepaths: List[str], config: PipelineConfig):
+    def __init__(self, filepaths: List[str], config: PipelineConfig,
+                 pipeline: Optional['BCIPipeline'] = None):
         super().__init__()
         self.filepaths = list(filepaths)
         self.config = config
+        self._pipeline = pipeline
 
     def run(self):
         try:
             from bci.pipeline import BCIPipeline
+
+            pipeline = self._pipeline or BCIPipeline(self.config)
             self.progress.emit(0)
+            self.log.emit(f"Processing: {self.filepaths[0]}")
 
-            self.log.emit(f"Loading: {self.filepaths[0]}")
-            pipeline = BCIPipeline(self.config)
-            pipeline.load(Path(self.filepaths[0]))
-            self.progress.emit(20)
+            result = pipeline.run(Path(self.filepaths[0]))
 
-            pipeline.preprocess()
-            self.progress.emit(50)
-            self.log.emit("Preprocessing done")
-
-            pipeline.create_epochs()
-            self.progress.emit(70)
-            self.log.emit(f"Created {len(pipeline.epochs)} epochs")
-
-            pipeline.decode()
-            self.progress.emit(100)
-            self.log.emit("Pipeline complete")
-
-            self.finished.emit(pipeline.result, pipeline)
+            if result.success:
+                self.log.emit(
+                    f"Accuracy: {result.accuracy:.3f} ± {result.std:.3f}")
+                self.steps_skipped.emit(list(result.steps_skipped))
+                self.progress.emit(100)
+                self.log.emit("Pipeline complete")
+                self.finished.emit(result, pipeline)
+            else:
+                self.error.emit(
+                    result.errors[0] if result.errors else "Unknown error")
         except Exception as e:
             self.error.emit(str(e))
 

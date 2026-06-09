@@ -107,6 +107,7 @@ class BatchTab(QWidget):
     def _on_files_loaded(self, filepaths: List[str]):
         import re
         self._filepaths = filepaths
+        self._pipeline = None  # new file → invalidate cached pipeline state
         n = len(filepaths)
         if n > 1:
             stem = Path(filepaths[0]).stem
@@ -168,7 +169,6 @@ class BatchTab(QWidget):
         self._config.decode.method = self._decode_page.method
         self._config.decode.cv_folds = self._decode_page.cv_folds
 
-        self._pipeline = None
         self.run_btn.setEnabled(False)
         self.save_btn.setEnabled(False)
         self._main_page.clear_log()
@@ -176,36 +176,33 @@ class BatchTab(QWidget):
         self.status_label.setText("Running pipeline...")
         self.step_strip.set_all_pending()
         self.step_strip.set_status(0, StepStatus.DONE)
-        self.step_strip.set_status(1, StepStatus.RUNNING)
         self._pages.setCurrentIndex(1)
         self.step_strip.set_active(1)
 
-        self._worker = BatchWorker(self._filepaths, self._config)
+        self._worker = BatchWorker(self._filepaths, self._config,
+                                   pipeline=self._pipeline)
         self._worker.log.connect(self._main_page.append_log)
-        self._worker.progress.connect(self._on_pipeline_progress)
+        self._worker.progress.connect(self._main_page.set_pipeline_progress)
+        self._worker.steps_skipped.connect(self._on_steps_skipped)
         self._worker.finished.connect(self._on_finished)
         self._worker.error.connect(self._on_error)
         self._worker.start()
 
-    def _on_pipeline_progress(self, val: int):
-        self._main_page.set_pipeline_progress(val)
-        if val >= 50:
-            self.step_strip.set_status(1, StepStatus.DONE)
-            self.step_strip.set_status(2, StepStatus.RUNNING)
-            self._pages.setCurrentIndex(2)
-            self.step_strip.set_active(2)
-        if val >= 70:
-            self.step_strip.set_status(2, StepStatus.DONE)
-            self.step_strip.set_status(3, StepStatus.RUNNING)
-            self._pages.setCurrentIndex(3)
-            self.step_strip.set_active(3)
-            self._epoch_page.refresh_chart(self._pipeline)
+    _STEP_IDX = {'load': 0, 'preprocess': 1, 'create_epochs': 2, 'decode': 3}
+
+    def _on_steps_skipped(self, skipped: list):
+        for step_name in skipped:
+            idx = self._STEP_IDX.get(step_name)
+            if idx is not None:
+                self.step_strip.set_status(idx, StepStatus.STALE)
 
     def _on_finished(self, result, pipeline):
         self._pipeline = pipeline
-        self.step_strip.set_status(1, StepStatus.DONE)
-        self.step_strip.set_status(2, StepStatus.DONE)
-        self.step_strip.set_status(3, StepStatus.DONE)
+        # Mark non-skipped steps as DONE
+        skipped_set = set(result.steps_skipped) if result else set()
+        for name, idx in self._STEP_IDX.items():
+            self.step_strip.set_status(
+                idx, StepStatus.STALE if name in skipped_set else StepStatus.DONE)
 
         if result and result.accuracy is not None:
             self.status_label.setText(
@@ -236,11 +233,13 @@ class BatchTab(QWidget):
         QMessageBox.warning(self, "Pipeline Error", msg)
 
     def _on_save(self):
-        if self._worker is None or not self._filepaths:
+        if not self._filepaths:
             return
-        from bci.pipeline import BCIPipeline
-        pipeline = BCIPipeline(self._config)
-        pipeline.run(Path(self._filepaths[0]))
+        pipeline = self._pipeline
+        if pipeline is None:
+            from bci.pipeline import BCIPipeline
+            pipeline = BCIPipeline(self._config)
+            pipeline.run(Path(self._filepaths[0]))
         saved = pipeline.save_results()
         self._main_page.append_log(f"Saved to: {saved}")
         QMessageBox.information(

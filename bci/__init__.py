@@ -5,12 +5,14 @@ BCI Signal Processing Pipeline - Engineering and Integration
 
 Modules:
     config   - Configuration management
-    loader   - Data loading
-    preprocessor - Signal preprocessing
+    source   - Data loading (FileSource / StreamSource / EEGReader)
+    preprocessor - Signal preprocessing (MNE-based)
     epocher  - Event/epoch extraction
-    decoder  - BCI decoding
+    decoder  - BCI decoding (LDA, CSP, CNN, SSVEP, Transformer, ...)
     pipeline - Pipeline orchestrator
-    gui      - Qt GUI (optional)
+    processor - Online streaming signal processor
+    streaming - Sliding window for real-time prediction
+    gui      - Qt GUI (batch + streaming tabs)
 
 Usage:
     from bci.config import PipelineConfig
