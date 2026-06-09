@@ -1,69 +1,102 @@
 """
-DataSource Abstract Base Class
-==============================
-Unified interface for file-based and streaming data sources.
+EEGData Container + EEGReader ABC + Reader Registry
+====================================================
+Data container, reader abstraction, and pluggable reader registry
+for file-format-agnostic EEG loading.
 """
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import Optional, Tuple
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Optional, Dict, Type
+
 import numpy as np
 
 
-class DataSource(ABC):
-    """Abstract data source for EEG signals.
+@dataclass
+class EEGData:
+    """Portable EEG data container — format-agnostic.
 
-    Subclasses implement either batch (FileSource) or streaming
-    (StreamSource) access patterns. Consumers only depend on this
-    interface, not on the concrete source type.
+    Attributes:
+        data: Raw signal of shape (n_channels, n_samples).
+        sfreq: Sampling frequency in Hz.
+        ch_names: List of channel names.
+        montage: Montage name, or None if unknown.
+        source_path: Original file path, or None.
+    """
+    data: np.ndarray
+    sfreq: float
+    ch_names: list[str]
+    montage: str | None = None
+    source_path: str | None = None
+
+    @property
+    def n_channels(self) -> int:
+        return self.data.shape[0]
+
+    @property
+    def n_samples(self) -> int:
+        return self.data.shape[1]
+
+    @property
+    def total_samples(self) -> int:
+        return self.n_samples
+
+    @property
+    def duration(self) -> float:
+        return self.n_samples / self.sfreq if self.sfreq > 0 else 0.0
+
+
+class EEGReader(ABC):
+    """Abstract reader for a specific EEG file format.
+
+    Subclasses register themselves via ``@register_reader(suffix)``,
+    then implement ``read()`` to extract an EEGData container and
+    optionally ``read_raw()`` to return a MNE Raw object.
     """
 
     @abstractmethod
-    def open(self) -> None:
-        """Open the data source and prepare for reading."""
+    def read(self, filepath: Path) -> EEGData:
+        """Load file and return a portable EEGData container."""
         ...
 
-    @abstractmethod
-    def read_chunk(self, n_samples: int) -> Optional[np.ndarray]:
-        """Read up to n_samples from current position.
+    def read_raw(self, filepath: Path):
+        """Load file and return an MNE Raw object (optional, GUI / pipeline use)."""
+        return _eegdata_to_raw(self.read(filepath))
 
-        Returns:
-            (n_channels, n_read) array, or None at EOF / after close.
-        """
-        ...
 
-    @abstractmethod
-    def seek(self, sample_idx: int) -> None:
-        """Move read position to sample_idx."""
-        ...
+# ---------------------------------------------------------------------------
+# Reader registry
+# ---------------------------------------------------------------------------
 
-    @abstractmethod
-    def close(self) -> None:
-        """Release resources."""
-        ...
+_reader_registry: Dict[str, EEGReader] = {}
 
-    @property
-    @abstractmethod
-    def sfreq(self) -> float:
-        """Sampling frequency in Hz."""
-        ...
 
-    @property
-    @abstractmethod
-    def n_channels(self) -> int:
-        """Number of EEG channels."""
-        ...
+def _eegdata_to_raw(eeg: EEGData):
+    """Convert EEGData to an MNE RawArray (lazy-import MNE)."""
+    import mne
+    info = mne.create_info(eeg.ch_names, eeg.sfreq, ch_types='eeg')
+    return mne.io.RawArray(eeg.data, info)
 
-    @property
-    def total_samples(self) -> Optional[int]:
-        """Total samples available, None if unknown (live stream)."""
-        return None
 
-    @property
-    def is_stream(self) -> bool:
-        """True for streaming sources, False for batch."""
-        return False
+def register_reader(*suffixes: str):
+    """Decorator: register an EEGReader subclass under one or more suffixes."""
+    def wrapper(cls: type[EEGReader]) -> type[EEGReader]:
+        instance = cls()
+        for suffix in suffixes:
+            _reader_registry[suffix.lower()] = instance
+        return cls
+    return wrapper
 
-    def get_data(self, start: Optional[int] = None,
-                 stop: Optional[int] = None) -> Tuple[np.ndarray, np.ndarray]:
-        """Convenience: get data range with times. Default: all data."""
-        raise NotImplementedError
+
+def get_reader(filepath: Path) -> EEGReader:
+    """Resolve the appropriate reader for a file path."""
+    suffix = filepath.suffix.lower()
+    reader = _reader_registry.get(suffix)
+    if reader is None:
+        supported = sorted(_reader_registry.keys())
+        raise ValueError(
+            f"Unsupported file format '{suffix}'. "
+            f"Supported: {', '.join(supported)}"
+        )
+    return reader

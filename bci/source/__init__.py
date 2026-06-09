@@ -1,11 +1,19 @@
 """
 Data Source Module
-=================
-Abstract data source interface for batch and stream modes.
+==================
+EEG data loading (FileSource), streaming (StreamSource), and reader
+abstractions (EEGData, EEGReader, register_reader).
 """
-from .base import DataSource
+from .base import EEGData, EEGReader, register_reader, get_reader
 from .file_source import FileSource
 from .stream_source import StreamSource
-from .session_source import SessionSource, find_session_runs
+from . import readers  # trigger built-in reader registrations
 
-__all__ = ['DataSource', 'FileSource', 'StreamSource', 'SessionSource', 'find_session_runs']
+__all__ = [
+    'EEGData',
+    'EEGReader',
+    'register_reader',
+    'get_reader',
+    'FileSource',
+    'StreamSource',
+]

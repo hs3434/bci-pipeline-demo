@@ -4,13 +4,15 @@ Decoder Module
 BCI Decoding with pluggable backends via Decoder ABC.
 
 Supported methods:
-    'lda'   — StandardScaler + PCA + LDA
-    'ssvep' — Single-band CCA
-    'fbcca' — Filter-Bank CCA
-    'cnn'   — 2D CNN (PyTorch)
+    'lda'            — StandardScaler + PCA + LDA
+    'ssvep'          — Single-band CCA
+    'fbcca'          — Filter-Bank CCA
+    'cnn'            — 2D CNN (PyTorch)
+    'transformer'    — GPT-style causal + RoPE
+    'transformer_bert' — BERT-style bidirectional + CLS
 """
 from __future__ import annotations
-from typing import List, Dict, Type
+from typing import List, Dict, Callable
 import logging
 import numpy as np
 from dataclasses import dataclass
@@ -29,74 +31,34 @@ class DecodeResult:
 
 
 # ----------------------------------------------------------------
-# Decoder registry
+# Decoder registry — lazily resolves Decoder classes to avoid
+# eager-loading heavy dependencies (torch, sklearn, MNE) at
+# import time.
 # ----------------------------------------------------------------
 
-_registry: Dict[str, Type[Decoder]] = {}
+_registry: Dict[str, Callable[..., Decoder]] = {}
 
 
-def register(method: str):
-    """Decorator: register a Decoder subclass under a method name."""
-    def wrapper(cls: Type[Decoder]) -> Type[Decoder]:
-        _registry[method] = cls
-        return cls
-    return wrapper
+def _lazy(module_path: str, class_name: str) -> Callable[..., Decoder]:
+    """Return a factory that lazy-imports and instantiates a Decoder."""
+    def factory(**kw) -> Decoder:
+        mod = __import__(module_path, fromlist=[class_name])
+        cls = getattr(mod, class_name)
+        return cls(**kw)
+    return factory
+
+
+_registry['lda'] = _lazy('bci.decoder.lda', 'LDADecoder')
+_registry['ssvep'] = _lazy('bci.decoder.ssvep', 'SSVEPDecoder')
+_registry['fbcca'] = _lazy('bci.decoder.ssvep', 'FBCCADecoder')
+_registry['cnn'] = _lazy('bci.decoder.deep', 'CNNDecoder')
+_registry['transformer'] = _lazy('bci.decoder.transformer', 'TransformerDecoder')
+_registry['transformer_bert'] = _lazy('bci.decoder.transformer_bert',
+                                       'TransformerBertDecoder')
 
 
 def list_methods() -> List[str]:
     return sorted(_registry.keys())
-
-
-# ----------------------------------------------------------------
-# Auto-register built-in decoders
-# ----------------------------------------------------------------
-
-@register('lda')
-class _LDADecoder:
-    @staticmethod
-    def create(**kw):
-        from bci.decoder.lda import LDADecoder
-        return LDADecoder(**kw)
-
-
-@register('ssvep')
-class _SSVEPDecoder:
-    @staticmethod
-    def create(**kw):
-        from bci.decoder.ssvep import SSVEPDecoder
-        return SSVEPDecoder(**kw)
-
-
-@register('fbcca')
-class _FBCCADecoder:
-    @staticmethod
-    def create(**kw):
-        from bci.decoder.ssvep import FBCCADecoder
-        return FBCCADecoder(**kw)
-
-
-@register('cnn')
-class _CNNDecoder:
-    @staticmethod
-    def create(**kw):
-        from bci.decoder.deep import CNNDecoder
-        return CNNDecoder(**kw)
-
-
-@register('transformer')
-class _TransformerDecoder:
-    @staticmethod
-    def create(**kw):
-        from bci.decoder.transformer import TransformerDecoder
-        return TransformerDecoder(**kw)
-
-
-@register('transformer_bert')
-class _TransformerBertDecoder:
-    @staticmethod
-    def create(**kw):
-        from bci.decoder.transformer_bert import TransformerBertDecoder
-        return TransformerBertDecoder(**kw)
 
 
 # ----------------------------------------------------------------
@@ -125,8 +87,8 @@ def decode(epochs_data: np.ndarray, labels: np.ndarray,
             f"Unknown method '{method}'. Available: {list_methods()}"
         )
 
-    decoder_cls = _registry[method]
-    decoder = decoder_cls.create(**decoder_kwargs)
+    factory = _registry[method]
+    decoder = factory(**decoder_kwargs)
 
     if method in ('ssvep', 'fbcca'):
         decoder.fit(epochs_data, labels)
@@ -139,7 +101,7 @@ def decode(epochs_data: np.ndarray, labels: np.ndarray,
                           shuffle=True, random_state=42)
     scores = []
     for train_idx, test_idx in cv.split(epochs_data, labels):
-        fold_decoder = decoder_cls.create(**decoder_kwargs)
+        fold_decoder = factory(**decoder_kwargs)
         fold_decoder.fit(epochs_data[train_idx], labels[train_idx])
         preds = fold_decoder.predict(epochs_data[test_idx])
         scores.append(float(np.mean(preds == labels[test_idx])))
@@ -158,4 +120,4 @@ def create_decoder(method: str, **kwargs) -> Decoder:
         raise ValueError(
             f"Unknown method '{method}'. Available: {list_methods()}"
         )
-    return _registry[method].create(**kwargs)
+    return _registry[method](**kwargs)

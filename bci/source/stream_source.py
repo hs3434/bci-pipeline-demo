@@ -1,67 +1,86 @@
 """
 StreamSource — Simulated Real-Time Data Feed
 ============================================
-Reads a file in chunks, simulating a live EEG acquisition device.
-Supports speed control, loop mode, seek, and progress tracking.
+Wraps an EEGData container and feeds it chunk-by-chunk, simulating
+a live EEG acquisition device.
 """
 from __future__ import annotations
 from typing import Optional
-from pathlib import Path
+
 import numpy as np
 
-from .base import DataSource
+from bci.source.base import EEGData
 
 
-class StreamSource(DataSource):
-    """Streaming data source that reads an EEG file chunk-by-chunk.
+class StreamSource:
+    """Streaming wrapper over a pre-loaded EEGData container.
 
-    Simulates real-time acquisition by feeding data in chunks.
-    Supports configurable playback speed, loop mode, and seeking.
+    Does NOT read files — receives a ready-to-use EEGData from
+    FileSource.load() or any other producer.
 
-    For Qt-based GUI, use the chunk_ready signal to drive updates.
-    For CLI testing, use read_chunk() directly.
+    Example:
+        >>> eeg = FileSource.load('data.edf')
+        >>> stream = StreamSource(eeg, chunk_duration=0.1)
+        >>> while (chunk := stream.read_chunk()) is not None:
+        ...     process(chunk)
     """
 
-    def __init__(self, filepath: str | Path,
-                 chunk_duration: float = 0.1):
-        self.filepath = Path(filepath)
+    def __init__(self, data: EEGData, chunk_duration: float = 0.1):
+        self._eeg = data
+        self._data = data.data
+        self.sfreq = data.sfreq
+        self.n_channels = data.n_channels
         self.chunk_duration = chunk_duration
-        self._raw = None
-        self._data = None
+
         self._position = 0
         self._speed = 1.0
         self._loop = False
         self._closed = False
 
-    def open(self) -> None:
-        import mne
-        self._raw = mne.io.read_raw(self.filepath, preload=True)
-        self._data = self._raw.get_data()
-        self._position = 0
-        self._closed = False
+    @property
+    def ch_names(self) -> list[str]:
+        return self._eeg.ch_names
 
-    def read_chunk(self, n_samples: int) -> Optional[np.ndarray]:
+    @property
+    def source_path(self) -> str | None:
+        return self._eeg.source_path
+
+    @property
+    def chunk_samples(self) -> int:
+        return max(1, int(self.sfreq * self.chunk_duration))
+
+    def read_chunk(self, n_samples: int | None = None) -> Optional[np.ndarray]:
+        """Read next chunk.
+
+        Args:
+            n_samples: Samples to read (defaults to chunk_samples).
+
+        Returns:
+            (n_channels, n_read) array, or None at EOF / after close.
+        """
+        if n_samples is None:
+            n_samples = self.chunk_samples
         if self._closed or self._data is None:
             return None
+
         total = self._data.shape[1]
         if self._position >= total:
             if self._loop:
                 self._position = 0
             else:
                 return None
+
         end = min(self._position + n_samples, total)
         chunk = self._data[:, self._position:end]
         self._position = end
         return chunk
 
     def seek(self, sample_idx: int) -> None:
-        if self._data is not None:
-            total = self._data.shape[1]
-            self._position = max(0, min(sample_idx, total))
+        total = self._data.shape[1]
+        self._position = max(0, min(sample_idx, total))
 
     def close(self) -> None:
-        self._raw = None
-        self._data = None
+        self._data = np.empty((0, 0))
         self._closed = True
 
     def reset(self) -> None:
@@ -74,20 +93,8 @@ class StreamSource(DataSource):
         self._speed = max(0.01, speed)
 
     @property
-    def sfreq(self) -> float:
-        return float(self._raw.info['sfreq']) if self._raw else 0.0
-
-    @property
-    def n_channels(self) -> int:
-        return int(self._data.shape[0]) if self._data is not None else 0
-
-    @property
-    def total_samples(self) -> Optional[int]:
-        return int(self._data.shape[1]) if self._data is not None else None
-
-    @property
-    def is_stream(self) -> bool:
-        return True
+    def total_samples(self) -> int:
+        return self._data.shape[1]
 
     @property
     def position(self) -> int:
@@ -95,6 +102,10 @@ class StreamSource(DataSource):
 
     @property
     def progress(self) -> int:
-        if self._data is None or self._data.shape[1] == 0:
+        if self._data.shape[1] == 0:
             return 0
         return min(100, int(self._position / self._data.shape[1] * 100))
+
+    @property
+    def is_stream(self) -> bool:
+        return True

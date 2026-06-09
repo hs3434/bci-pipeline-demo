@@ -1,62 +1,100 @@
 """
-FileSource — Full-File Batch Data Access
-========================================
-Loads an entire EEG file into memory for offline analysis.
+FileSource — File Loading Facade
+=================================
+Format-agnostic EEG file loading with optional session concatenation.
 """
 from __future__ import annotations
-from typing import Optional, Tuple
-import numpy as np
 from pathlib import Path
+from typing import List, Optional
+import logging
+import re
+import glob as glob_lib
 
-from .base import DataSource
+import numpy as np
+
+from bci.source.base import EEGData, get_reader
+
+logger = logging.getLogger(__name__)
 
 
-class FileSource(DataSource):
-    """Batch data source wrapping an EEG file loaded via MNE.
+class FileSource:
+    """File-loading facade for EEG data.
 
-    Provides random access to the full dataset for offline analysis.
+    Delegates to registered EEGReader implementations based on file
+    suffix. Supports single-file loading and session-level multi-run
+    concatenation.
+
+    Examples:
+        # Single file
+        >>> eeg = FileSource.load('data.edf')
+        >>> print(eeg.n_channels, eeg.n_samples)
+
+        # Multi-run session
+        >>> eeg = FileSource.load('S001R04.edf', session=True)
     """
 
-    def __init__(self, filepath: str | Path):
-        self.filepath = Path(filepath)
-        self._raw = None
-        self._data = None
-        self._times = None
+    @staticmethod
+    def load(filepath: Path | str | List[str],
+             session: bool = False) -> EEGData:
+        if isinstance(filepath, list):
+            paths = [Path(p) for p in filepath]
+        else:
+            filepath = Path(filepath)
+            paths = find_session_runs(filepath) if session else [filepath]
 
-    def open(self) -> None:
-        import mne
-        self._raw = mne.io.read_raw(self.filepath, preload=True)
-        self._data, self._times = self._raw[:, :]
+        if not paths:
+            raise FileNotFoundError(f"No files found for: {filepath}")
 
-    def read_chunk(self, n_samples: int) -> Optional[np.ndarray]:
-        raise NotImplementedError("FileSource uses get_data(), not read_chunk()")
+        eegs: List[EEGData] = []
+        for p in paths:
+            logger.info(f"Loading: {p}")
+            reader = get_reader(p)
+            eegs.append(reader.read(p))
 
-    def seek(self, sample_idx: int) -> None:
-        pass
+        if len(eegs) == 1:
+            eegs[0].source_path = str(paths[0])
+            return eegs[0]
 
-    def close(self) -> None:
-        self._raw = None
-        self._data = np.empty((0, 0))
-        self._times = np.empty(0)
+        result = _concat_eegs(eegs)
+        result.source_path = str(paths[0])
+        return result
 
-    @property
-    def sfreq(self) -> float:
-        return float(self._raw.info['sfreq'])
+    @staticmethod
+    def load_raw(filepath: Path | str):
+        """Load file and return an MNE Raw object.
 
-    @property
-    def n_channels(self) -> int:
-        return int(self._data.shape[0])
+        Useful when downstream code needs MNE-specific features
+        (montage metadata, plot_topomap, etc.).
+        """
+        filepath = Path(filepath)
+        reader = get_reader(filepath)
+        return reader.read_raw(filepath)
 
-    @property
-    def total_samples(self) -> int:
-        return int(self._data.shape[1])
 
-    def get_data(self, start: Optional[int] = None,
-                 stop: Optional[int] = None) -> Tuple[np.ndarray, np.ndarray]:
-        if self._data is None or self._times is None or self._data.size == 0:
-            return np.array([]), np.array([])
-        if start is None:
-            start = 0
-        if stop is None:
-            stop = self._data.shape[1]
-        return self._data[:, start:stop], self._times[start:stop]
+def find_session_runs(filepath: Path) -> List[Path]:
+    """Discover all runs belonging to the same subject session.
+
+    Given ``S001R04.edf``, glob for ``S001R*.edf`` in the same
+    directory and sort by ascending run number.
+    """
+    stem = filepath.stem
+    match = re.match(r'^(.*R)0?(\d+)$', stem)
+    if match is None:
+        return [filepath]
+
+    base = match.group(1)
+    ext = filepath.suffix
+    pattern = f"{filepath.parent}/{base}*{ext}"
+    runs = sorted(
+        glob_lib.glob(pattern),
+        key=lambda p: int(re.search(r'R(\d+)', p).group(1)),
+    )
+    return [Path(p) for p in runs]
+
+
+def _concat_eegs(eegs: List[EEGData]) -> EEGData:
+    """Concatenate multiple EEGData objects along the time axis."""
+    data = np.concatenate([e.data for e in eegs], axis=1)
+    sfreq = eegs[0].sfreq
+    ch_names = eegs[0].ch_names
+    return EEGData(data=data, sfreq=sfreq, ch_names=ch_names)

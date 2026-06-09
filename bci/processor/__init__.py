@@ -1,9 +1,8 @@
 """
 Processor Module
 ================
-Offline (batch) and online (streaming) signal processors.
+Online (streaming) signal processors for real-time EEG.
 """
-from .offline import OfflineProcessor
 from .online import OnlineProcessor
 
-__all__ = ['OfflineProcessor', 'OnlineProcessor']
+__all__ = ['OnlineProcessor']

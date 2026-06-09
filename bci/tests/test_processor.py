@@ -1,5 +1,5 @@
 """
-Tests for bci.processor module (offline + online)
+Tests for bci.processor module (online streaming)
 """
 from __future__ import annotations
 import pytest
@@ -18,55 +18,6 @@ def _generate_test_signal(n_channels=4, n_samples=5000, sfreq=256.0):
             + np.random.randn(n_samples) * 5    # background noise
         )
     return data, sfreq
-
-
-class TestOfflineProcessor:
-    """Offline (batch) processor — filtfilt, full normalization"""
-
-    @pytest.fixture
-    def processor(self):
-        from bci.processor.offline import OfflineProcessor
-        return OfflineProcessor()
-
-    @pytest.fixture
-    def signal(self):
-        return _generate_test_signal()
-
-    def test_bandpass_changes_signal(self, processor, signal):
-        data, sfreq = signal
-        result = processor.bandpass(data, sfreq, l_freq=1.0, h_freq=30.0)
-        assert result.shape == data.shape
-        assert not np.allclose(data, result)
-
-    def test_bandpass_zero_phase_preserves_peak_alignmnt(self, processor):
-        sfreq = 256.0
-        t = np.arange(1000) / sfreq
-        data = np.sin(2 * np.pi * 10 * t).reshape(1, -1)
-        result = processor.bandpass(data, sfreq, l_freq=1.0, h_freq=30.0)
-        assert result.shape == data.shape
-
-    def test_notch_removes_line_noise(self, processor, signal):
-        data, sfreq = signal
-        result = processor.notch(data, sfreq, freqs=[50])
-        fft_before = np.abs(np.fft.rfft(data[0]))**2
-        fft_after = np.abs(np.fft.rfft(result[0]))**2
-        freq_bin = int(50 * len(fft_before) / (sfreq / 2))
-        assert fft_after[freq_bin] < fft_before[freq_bin]
-
-    def test_normalize_zero_mean_unit_std(self, processor, signal):
-        data, sfreq = signal
-        result = processor.normalize(data)
-        mean = np.mean(result)
-        std = np.std(result)
-        assert abs(mean) < 1e-6
-        assert abs(std - 1.0) < 0.1
-
-    def test_chain_bandpass_notch(self, processor, signal):
-        data, sfreq = signal
-        result = data.copy()
-        result = processor.bandpass(result, sfreq, l_freq=1.0, h_freq=30.0)
-        result = processor.notch(result, sfreq, freqs=[50])
-        assert result.shape == data.shape
 
 
 class TestOnlineProcessor:

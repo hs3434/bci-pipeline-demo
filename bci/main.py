@@ -28,22 +28,13 @@ def parse_args():
         epilog="""
 Examples:
   python -m bci.main data.edf
-  python -m bci.main data.edf --config config.yaml --output ./results
-  python -m bci.main data.edf --l_freq 1 --h_freq 40 --method lda
+  python -m bci.main data.edf --config config.yaml
+  python -m bci.main --gui
         """
     )
 
     parser.add_argument('filepath', type=str, nargs='?', help='Path to EEG file')
     parser.add_argument('--config', '-c', type=str, help='YAML config file')
-    parser.add_argument('--output', '-o', type=str, default='./output',
-                       help='Output directory')
-    parser.add_argument('--l_freq', type=float, default=0.5,
-                       help='Low frequency cutoff (Hz)')
-    parser.add_argument('--h_freq', type=float, default=40.0,
-                       help='High frequency cutoff (Hz)')
-    parser.add_argument('--method', type=str, default='lda',
-                       choices=['lda', 'mi', 'ssvep'],
-                       help='Decoding method')
     parser.add_argument('--gui', action='store_true',
                        help='Launch GUI mode')
     parser.add_argument('--verbose', '-v', action='store_true',
@@ -62,14 +53,11 @@ def run_cli(args):
 
     logger = logging.getLogger(__name__)
 
-    config = PipelineConfig()
-    config.filter.l_freq = args.l_freq
-    config.filter.h_freq = args.h_freq
-    config.decode.method = args.method
-    config.output_dir = args.output
-
     if args.config:
         config = PipelineConfig.from_yaml(Path(args.config))
+        logger.info(f"Loaded config from {args.config}")
+    else:
+        config = PipelineConfig()
 
     logger.info(f"Processing: {args.filepath}")
 

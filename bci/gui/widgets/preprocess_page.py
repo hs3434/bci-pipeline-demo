@@ -68,11 +68,11 @@ class PreprocessPage(QFrame):
         for spine in ax.spines.values():
             spine.set_color('#444')
         try:
-            if source is None or not source._data_list:
+            d = getattr(source, 'data', None)
+            if source is None or d is None:
                 ax.text(0.5, 0.5, "No data loaded", transform=ax.transAxes,
                         ha='center', va='center', color='#555')
             else:
-                d = source._data_list[0]
                 n_ch = min(8, d.shape[0])
                 n_samples = min(500, d.shape[1])
                 t = np.arange(n_samples) / source.sfreq

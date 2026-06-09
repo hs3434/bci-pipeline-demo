@@ -37,18 +37,17 @@ class TestDecoder:
     """Test decoding functions"""
 
     def test_cca_score(self):
-        from bci.decoder import SSVEPDetector
+        from bci.decoder.ssvep import SSVEPDecoder
         import numpy as np
 
-        detector = SSVEPDetector(target_freqs=[10.0, 12.0], fs=500)
+        detector = SSVEPDecoder(target_freqs=[10.0, 12.0], fs=500)
 
         # Create test signal (10 Hz)
         t = np.arange(500) / 500
-        signal = np.sin(2 * np.pi * 10 * t).reshape(1, -1)
+        signal = np.sin(2 * np.pi * 10 * t).reshape(1, 1, -1)  # (1, 1, 500)
 
-        idx, scores = detector.decode(signal)
-        assert idx in [0, 1]  # Should detect one of the targets
-        assert len(scores) == 2
+        idx = detector.predict(signal)
+        assert idx[0] in [0, 1]  # Should detect one of the targets
 
 
 class TestPipeline:

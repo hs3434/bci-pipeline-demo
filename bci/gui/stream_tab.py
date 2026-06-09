@@ -19,7 +19,6 @@ from bci.gui.widgets import (
     EEGInfoPanel,
 )
 from bci.gui.worker import StreamWorker, LoadWorker
-from bci.source import SessionSource
 
 
 class StreamTab(QWidget):
@@ -31,7 +30,8 @@ class StreamTab(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._filepaths: List[str] = []
-        self._source: Optional[SessionSource] = None
+        self._source: Optional[object] = None
+        self._stream_source: Optional[object] = None
         self._worker: Optional[StreamWorker] = None
         self._load_worker: Optional[LoadWorker] = None
         self._model_path: Optional[str] = None
@@ -180,6 +180,7 @@ class StreamTab(QWidget):
         if self._worker is not None:
             self._worker.stop()
             self._worker = None
+        self._stream_source = None
         self._source = None
         self._model_path = None
         self.model_status.setText("No model")
@@ -234,15 +235,16 @@ class StreamTab(QWidget):
         self.load_progress_bar.setMaximum(total)
         self.load_progress_bar.setValue(current)
 
-    def _on_load_finished(self, source):
-        self._source = source
+    def _on_load_finished(self, eeg):
+        from bci.source import StreamSource
+        self._stream_source = StreamSource(eeg)
         self._load_worker = None
         self.load_progress_bar.setVisible(False)
         self.load_label.setVisible(False)
-        self.info_panel.show_stream(source)
+        self.info_panel.show_stream(self._stream_source)
         self.status_label.setText(
-            f"Ready — {source.n_channels} ch, "
-            f"{source.total_samples / source.sfreq:.1f}s"
+            f"Ready — {self._stream_source.n_channels} ch, "
+            f"{self._stream_source.total_samples / self._stream_source.sfreq:.1f}s"
         )
         self.start_btn.setEnabled(True)
 
@@ -255,7 +257,7 @@ class StreamTab(QWidget):
         QMessageBox.warning(self, "Load Error", msg)
 
     def _on_start(self):
-        if self._source is None:
+        if self._stream_source is None:
             return
         if self._worker is not None:
             return
@@ -265,22 +267,21 @@ class StreamTab(QWidget):
         self.pause_btn.setEnabled(True)
         self.stop_btn.setEnabled(True)
 
-        self._worker = StreamWorker(self._source)
+        self._worker = StreamWorker(self._stream_source)
         self._worker.set_speed(self.speed_input.value())
         self._worker.set_filter(self.l_freq.value(), self.h_freq.value())
         self._worker.set_loop(self.loop_cb.isChecked())
 
-        # Configure SlidingWindow for windowed prediction
         from bci.streaming import SlidingWindow
         swin = SlidingWindow(
-            n_channels=self._source.n_channels,
+            n_channels=self._stream_source.n_channels,
             window_size=self.window_size_input.value(),
             decision_interval=self.decision_interval_input.value(),
         )
         self._worker.set_sliding_window(swin)
 
-        n_ch = self._source.n_channels
-        sfreq = self._source.sfreq
+        n_ch = self._stream_source.n_channels
+        sfreq = self._stream_source.sfreq
         ch_names = [f'Ch {i}' for i in range(n_ch)]
         self.waveform_widget._init_buffer(n_ch, sfreq, ch_names)
 
@@ -311,6 +312,7 @@ class StreamTab(QWidget):
         if self._worker is not None:
             self._worker.stop()
             self._worker = None
+        self._stream_source = None
         self._source = None
         self.info_panel.clear()
         self.pause_btn.setEnabled(False)
@@ -323,8 +325,8 @@ class StreamTab(QWidget):
 
     def _on_chunk(self, chunk):
         self.waveform_widget.update_stream(chunk)
-        self.spectrum_widget.update_psd(chunk, self._source.sfreq)
-        self.info_panel.update_elapsed(self._source)
+        self.spectrum_widget.update_psd(chunk, self._stream_source.sfreq)
+        self.info_panel.update_elapsed(self._stream_source)
 
     def _on_stream_finished(self):
         self.status_label.setText("Playback complete")

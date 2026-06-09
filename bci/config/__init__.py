@@ -57,7 +57,8 @@ class DecodeConfig:
     cv_folds: int = 5
 
     def validate(self) -> bool:
-        valid_methods = ['lda', 'ssvep', 'fbcca', 'cnn']
+        from bci.decoder import list_methods as list_decoder_methods
+        valid_methods = list_decoder_methods()
         if self.method not in valid_methods:
             raise ValueError(f"method must be one of {valid_methods}, got {self.method}")
         if self.cv_folds < 2:
@@ -80,9 +81,6 @@ class PipelineConfig:
         self.filter.validate()
         self.epoch.validate()
         self.decode.validate()
-        from pathlib import Path
-        Path(self.output_dir).mkdir(parents=True, exist_ok=True)
-        logger.info(f"Configuration validated, output: {self.output_dir}")
         return True
 
     @classmethod

@@ -2,21 +2,31 @@
 import numpy as np
 import pytest
 
+from bci.source.base import EEGData
+
+
+def _mock_eeg(n_channels=4, sfreq=160.0, n_samples=1600):
+    """Create a minimal EEGData for StreamWorker construction."""
+    return EEGData(
+        data=np.zeros((n_channels, n_samples), dtype=np.float32),
+        sfreq=sfreq,
+        ch_names=[f'Ch{i}' for i in range(n_channels)],
+    )
+
 
 class TestStreamWorkerSlidingWindow:
     def test_worker_has_sliding_window_attribute(self):
         from bci.gui.worker import StreamWorker
-        # Use a mock source to avoid file I/O
-        from bci.source import SessionSource
-        # Just test instantiation with a dummy path
-        sw = StreamWorker("/nonexistent.fif", chunk_duration=0.1)
+        from bci.source import StreamSource
+        sw = StreamWorker(StreamSource(_mock_eeg()), chunk_duration=0.1)
         assert hasattr(sw, "sliding_window")
         assert sw.sliding_window is None  # default: not configured
 
     def test_set_sliding_window_stores_config(self):
         from bci.gui.worker import StreamWorker
+        from bci.source import StreamSource
         from bci.streaming import SlidingWindow
-        sw = StreamWorker("/nonexistent.fif", chunk_duration=0.1)
+        sw = StreamWorker(StreamSource(_mock_eeg()), chunk_duration=0.1)
         swin = SlidingWindow(n_channels=64, window_size=1000, decision_interval=25)
         sw.set_sliding_window(swin)
         assert sw.sliding_window is swin
@@ -44,9 +54,10 @@ class TestStreamWorkerEmitChunkWithSW:
 
     def test_emit_chunk_uses_sliding_window_when_ready(self, monkeypatch):
         from bci.gui.worker import StreamWorker
+        from bci.source import StreamSource
         from bci.streaming import SlidingWindow
 
-        sw = StreamWorker("/nonexistent.fif", chunk_duration=0.1)
+        sw = StreamWorker(StreamSource(_mock_eeg()), chunk_duration=0.1)
         sw._chunk_samples = 16
         chunk = np.ones((4, 16), dtype=np.float32)  # 4ch × 16 samples
         monkeypatch.setattr(sw, "source",
@@ -84,9 +95,10 @@ class TestStreamWorkerEmitChunkWithSW:
 
     def test_emit_chunk_skips_prediction_when_not_ready(self, monkeypatch):
         from bci.gui.worker import StreamWorker
+        from bci.source import StreamSource
         from bci.streaming import SlidingWindow
 
-        sw = StreamWorker("/nonexistent.fif", chunk_duration=0.1)
+        sw = StreamWorker(StreamSource(_mock_eeg()), chunk_duration=0.1)
         sw._chunk_samples = 16
         chunk = np.ones((4, 16), dtype=np.float32)
         monkeypatch.setattr(sw, "source",
@@ -115,8 +127,9 @@ class TestStreamWorkerEmitChunkWithSW:
     def test_emit_chunk_falls_back_to_per_chunk_without_sw(self, monkeypatch):
         """Backward compat: no SW → predict on chunk directly (existing behavior)."""
         from bci.gui.worker import StreamWorker
+        from bci.source import StreamSource
 
-        sw = StreamWorker("/nonexistent.fif", chunk_duration=0.1)
+        sw = StreamWorker(StreamSource(_mock_eeg()), chunk_duration=0.1)
         sw._chunk_samples = 16
         chunk = np.ones((4, 16), dtype=np.float32)
         monkeypatch.setattr(sw, "source",
@@ -138,4 +151,3 @@ class TestStreamWorkerEmitChunkWithSW:
         sw._emit_chunk()
         assert fake.last_X_shape == (1, 4, 16)  # direct chunk prediction
         assert len(predictions) == 1
-

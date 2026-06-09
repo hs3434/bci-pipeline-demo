@@ -138,7 +138,7 @@ def open_session_files(parent: QWidget) -> List[Path]:
         return []
 
     if len(selected) == 1:
-        from bci.source.session_source import find_session_runs
+        from bci.source.file_source import find_session_runs
         runs = find_session_runs(selected[0])
         if len(runs) > 1:
             confirm = SessionDialog(runs, parent)

@@ -93,12 +93,12 @@ class BCIPipeline:
 
     def load(self, filepath: Path | str) -> 'BCIPipeline':
         """Load EEG data"""
-        from bci.loader import DataLoader
+        from bci.source import FileSource
 
         self.logger.info(f"Loading data: {filepath}")
         try:
-            loader = DataLoader(self.config)
-            self.raw = loader.load(filepath, preload=True)
+            raw_data = FileSource.load_raw(filepath)
+            self.raw = raw_data
             self._steps.append('load')
             self.logger.info(f"Loaded: {len(self.raw.ch_names)} channels")
             return self
@@ -232,6 +232,8 @@ class BCIPipeline:
         self.logger.info("=" * 50)
         self.logger.info("Starting BCI Pipeline")
         self.logger.info("=" * 50)
+
+        self._steps = []
 
         try:
             self.load(filepath)

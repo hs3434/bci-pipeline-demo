@@ -107,7 +107,7 @@ class TestLoadWorker:
 
     def test_run_emits_finished_with_source(self, qapp, fake_edf):
         from bci.gui.worker import LoadWorker
-        from bci.source import SessionSource
+        from bci.source import EEGData
 
         worker = LoadWorker([fake_edf])
         results = []
@@ -122,7 +122,7 @@ class TestLoadWorker:
 
         assert len(errors) == 0, f"Load error: {errors}"
         assert len(results) == 1, "Should emit finished with source"
-        assert isinstance(results[0], SessionSource)
+        assert isinstance(results[0], EEGData)
         assert len(progresses) > 0, "Should emit load progress"
         source = results[0]
         assert source.n_channels > 0
@@ -142,12 +142,16 @@ class TestStreamWorker:
 
     def test_construction(self, qapp, fake_edf):
         from bci.gui.worker import StreamWorker
-        worker = StreamWorker(fake_edf)
+        from bci.source import FileSource
+        eeg = FileSource.load(fake_edf)
+        worker = StreamWorker(eeg)
         assert worker is not None
 
     def test_signals_exist(self, qapp, fake_edf):
         from bci.gui.worker import StreamWorker
-        worker = StreamWorker(fake_edf)
+        from bci.source import FileSource
+        eeg = FileSource.load(fake_edf)
+        worker = StreamWorker(eeg)
         assert hasattr(worker, 'chunk_processed')
         assert hasattr(worker, 'spectrum_updated')
         assert hasattr(worker, 'error')
@@ -155,9 +159,11 @@ class TestStreamWorker:
 
     def test_start_emits_chunk_in_realtime(self, qapp, fake_edf):
         from bci.gui.worker import StreamWorker
+        from bci.source import FileSource
         from PyQt6.QtCore import QEventLoop, QTimer
 
-        worker = StreamWorker(fake_edf, chunk_duration=0.05)
+        eeg = FileSource.load(fake_edf)
+        worker = StreamWorker(eeg, chunk_duration=0.05)
         worker.set_speed(100.0)
         chunks = []
         worker.chunk_processed.connect(chunks.append)
@@ -178,9 +184,11 @@ class TestStreamWorker:
 
     def test_stop_stops_streaming(self, qapp, fake_edf):
         from bci.gui.worker import StreamWorker
+        from bci.source import FileSource
         from PyQt6.QtCore import QEventLoop, QTimer
 
-        worker = StreamWorker(fake_edf, chunk_duration=0.05)
+        eeg = FileSource.load(fake_edf)
+        worker = StreamWorker(eeg, chunk_duration=0.05)
         worker.set_speed(100.0)
         chunks = []
         worker.chunk_processed.connect(chunks.append)
@@ -198,7 +206,9 @@ class TestStreamWorker:
 
     def test_set_speed(self, qapp, fake_edf):
         from bci.gui.worker import StreamWorker
-        worker = StreamWorker(fake_edf)
+        from bci.source import FileSource
+        eeg = FileSource.load(fake_edf)
+        worker = StreamWorker(eeg)
         worker.set_speed(5.0)
         assert worker.speed == 5.0
 
@@ -208,21 +218,25 @@ class TestStreamWorkerSource:
 
     def test_source_is_accessible(self, qapp, fake_edf):
         from bci.gui.worker import StreamWorker
-        worker = StreamWorker(fake_edf)
+        from bci.source import FileSource
+        eeg = FileSource.load(fake_edf)
+        worker = StreamWorker(eeg)
         assert worker.source is not None
         assert worker.source.is_stream is True
 
     def test_seek_updates_source(self, qapp, fake_edf):
         from bci.gui.worker import StreamWorker
-        worker = StreamWorker(fake_edf)
-        worker.source.open()
+        from bci.source import FileSource
+        eeg = FileSource.load(fake_edf)
+        worker = StreamWorker(eeg)
         worker.seek(100)
         assert worker.source.position == 100
 
     def test_reset(self, qapp, fake_edf):
         from bci.gui.worker import StreamWorker
-        worker = StreamWorker(fake_edf)
-        worker.source.open()
+        from bci.source import FileSource
+        eeg = FileSource.load(fake_edf)
+        worker = StreamWorker(eeg)
         worker.source.read_chunk(500)
         worker.reset()
         assert worker.source.position == 0

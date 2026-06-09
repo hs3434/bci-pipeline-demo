@@ -165,21 +165,20 @@ class EEGInfoPanel(QFrame):
 
 def _display_name(source) -> str:
     import re
-    stem = source.filepath.stem
-    m = re.match(r'^(.*)R\d+$', stem)
-    return m.group(1) if m else stem
+    from pathlib import Path
+    path = getattr(source, 'source_path', None) or getattr(source, 'filepath', None)
+    if path:
+        stem = Path(str(path)).stem
+        m = re.match(r'^(.*)R\d+$', stem)
+        return m.group(1) if m else stem
+    return "EEG Data"
 
 
 def _channel_label(source) -> str:
-    try:
-        if source._raws:
-            raw = source._raws[0]
-            if hasattr(raw, 'ch_names'):
-                names = raw.ch_names[:6]
-                suffix = f" +{len(raw.ch_names) - 6}" if len(raw.ch_names) > 6 else ""
-                return ", ".join(names) + suffix
-    except Exception:
-        pass
+    if hasattr(source, 'ch_names'):
+        names = source.ch_names[:6]
+        suffix = f" +{len(source.ch_names) - 6}" if len(source.ch_names) > 6 else ""
+        return ", ".join(names) + suffix
     return ""
 
 

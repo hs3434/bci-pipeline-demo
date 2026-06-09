@@ -18,7 +18,6 @@ from bci.gui.widgets import (
     StepStrip, StepStatus,
 )
 from bci.gui.worker import BatchWorker, LoadWorker
-from bci.source import SessionSource
 
 
 class BatchTab(QWidget):
@@ -26,7 +25,7 @@ class BatchTab(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._filepaths: List[str] = []
-        self._source: Optional[SessionSource] = None
+        self._source: Optional[object] = None
         self._config = create_default_config()
         self._worker: Optional[BatchWorker] = None
         self._load_worker: Optional[LoadWorker] = None
@@ -138,11 +137,10 @@ class BatchTab(QWidget):
             f"Ready — {source.n_channels} ch, "
             f"{source.total_samples / source.sfreq:.1f}s"
         )
-        n_ch = min(8, source.n_channels)
-        ch_names = [f'Ch {i}' for i in range(n_ch)]
-        if source._data_list:
-            d = source._data_list[0]
+        d = getattr(source, 'data', None)
+        if d is not None:
             n_ch = min(8, d.shape[0])
+            ch_names = list(getattr(source, 'ch_names', [f'Ch {i}' for i in range(n_ch)]))
             self._main_page.plot_waveform(d[:n_ch], source.sfreq, ch_names[:n_ch])
 
         self._pages.setCurrentIndex(0)
