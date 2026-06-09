@@ -1,0 +1,204 @@
+"""
+Tests for bci.source.session_source module
+==========================================
+"""
+from __future__ import annotations
+import pytest
+import numpy as np
+import os
+import re
+import tempfile
+from pathlib import Path
+
+os.environ['QT_QPA_PLATFORM'] = 'offscreen'
+
+
+@pytest.fixture(scope='module')
+def qapp():
+    from PyQt6.QtWidgets import QApplication
+    app = QApplication.instance()
+    if app is None:
+        app = QApplication([""])
+    yield app
+
+
+def _create_fake_fif(filepath: str, n_channels: int = 4, n_samples: int = 1000, sfreq: float = 256.0):
+    """Create a fake FIF file (MNE's preferred format)."""
+    import mne
+    info = mne.create_info(
+        ch_names=[f'EEG {i:03d}' for i in range(n_channels)],
+        sfreq=sfreq, ch_types=['eeg'] * n_channels,
+    )
+    data = np.random.randn(n_channels, n_samples) * 50e-6
+    raw = mne.io.RawArray(data, info)
+    raw.save(filepath, overwrite=True)
+
+
+class TestFindSessionRuns:
+    """find_session_runs() utility"""
+
+    def test_glob_finds_4_runs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            for run in [4, 6, 8, 10]:
+                fif = os.path.join(tmp, f'S001R{run:02d}.fif')
+                _create_fake_fif(fif)
+            from bci.source.session_source import find_session_runs
+            runs = find_session_runs(os.path.join(tmp, 'S001R04.fif'))
+            assert len(runs) == 4
+
+    def test_glob_single_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fif = os.path.join(tmp, 'solo.fif')
+            _create_fake_fif(fif)
+            from bci.source.session_source import find_session_runs
+            runs = find_session_runs(os.path.join(tmp, 'solo.fif'))
+            assert len(runs) == 1
+
+    def test_run_order_sorted(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            for run in [4, 6, 8, 10]:
+                fif = os.path.join(tmp, f'S001R{run:02d}.fif')
+                _create_fake_fif(fif)
+            from bci.source.session_source import find_session_runs
+            runs = find_session_runs(os.path.join(tmp, 'S001R04.fif'))
+            run_nums = [int(re.search(r'R(\d+)', str(r)).group(1)) for r in runs]
+            assert run_nums == [4, 6, 8, 10]
+
+
+class TestSessionSource:
+    """SessionSource concatenates multiple runs"""
+
+    def test_total_samples_4_runs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            for run in [4, 6, 8, 10]:
+                _create_fake_fif(os.path.join(tmp, f'S001R{run:02d}.fif'), n_samples=1000)
+            from bci.source.session_source import SessionSource
+            source = SessionSource(os.path.join(tmp, 'S001R04.fif'))
+            source.open()
+            assert source.total_samples == 4000
+
+    def test_n_channels(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            for run in [4, 6, 8, 10]:
+                _create_fake_fif(os.path.join(tmp, f'S001R{run:02d}.fif'))
+            from bci.source.session_source import SessionSource
+            source = SessionSource(os.path.join(tmp, 'S001R04.fif'))
+            source.open()
+            assert source.n_channels == 4
+
+    def test_read_chunk(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            for run in [4, 6, 8, 10]:
+                _create_fake_fif(os.path.join(tmp, f'S001R{run:02d}.fif'))
+            from bci.source.session_source import SessionSource
+            source = SessionSource(os.path.join(tmp, 'S001R04.fif'))
+            source.open()
+            chunk = source.read_chunk(500)
+            assert chunk.shape == (4, 500)
+
+    def test_read_all_chunks_exhausts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            for run in [4, 6, 8, 10]:
+                _create_fake_fif(os.path.join(tmp, f'S001R{run:02d}.fif'), n_samples=1000)
+            from bci.source.session_source import SessionSource
+            source = SessionSource(os.path.join(tmp, 'S001R04.fif'))
+            source.open()
+            total = 0
+            while True:
+                chunk = source.read_chunk(500)
+                if chunk is None:
+                    break
+                total += chunk.shape[1]
+            assert total == 4000
+
+    def test_loop_wraps_at_eof(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            for run in [4, 6, 8, 10]:
+                _create_fake_fif(os.path.join(tmp, f'S001R{run:02d}.fif'), n_samples=1000)
+            from bci.source.session_source import SessionSource
+            source = SessionSource(os.path.join(tmp, 'S001R04.fif'))
+            source.open()
+            source.set_loop(True)
+            while source.position < source.total_samples:
+                source.read_chunk(500)
+            chunk = source.read_chunk(200)
+            assert chunk is not None
+            assert chunk.shape[1] == 200
+
+    def test_is_stream_true(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            for run in [4, 6, 8, 10]:
+                _create_fake_fif(os.path.join(tmp, f'S001R{run:02d}.fif'))
+            from bci.source.session_source import SessionSource
+            source = SessionSource(os.path.join(tmp, 'S001R04.fif'))
+            source.open()
+            assert source.is_stream is True
+
+    def test_progress_0_at_start(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            for run in [4, 6, 8, 10]:
+                _create_fake_fif(os.path.join(tmp, f'S001R{run:02d}.fif'))
+            from bci.source.session_source import SessionSource
+            source = SessionSource(os.path.join(tmp, 'S001R04.fif'))
+            source.open()
+            assert source.progress == 0
+
+    def test_progress_50_at_middle(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            for run in [4, 6, 8, 10]:
+                _create_fake_fif(os.path.join(tmp, f'S001R{run:02d}.fif'), n_samples=1000)
+            from bci.source.session_source import SessionSource
+            source = SessionSource(os.path.join(tmp, 'S001R04.fif'))
+            source.open()
+            source.seek(2000)
+            assert source.progress == 50
+
+    def test_reset_to_start(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            for run in [4, 6, 8, 10]:
+                _create_fake_fif(os.path.join(tmp, f'S001R{run:02d}.fif'))
+            from bci.source.session_source import SessionSource
+            source = SessionSource(os.path.join(tmp, 'S001R04.fif'))
+            source.open()
+            source.read_chunk(500)
+            source.reset()
+            assert source.position == 0
+
+    @pytest.mark.realdata
+    def test_with_real_bci_data(self):
+        """Integration test using real /data/bci files."""
+        if not os.path.exists('/data/bci/S001R04.edf'):
+            pytest.skip("Real BCI data not available")
+        from bci.source.session_source import SessionSource
+        source = SessionSource('/data/bci/S001R04.edf')
+        source.open()
+        assert source.n_channels == 64
+        assert source.sfreq == 160.0
+        assert source.total_samples == 20000 * 4
+        chunk = source.read_chunk(1600)
+        assert chunk.shape == (64, 1600)
+        assert source.run_count == 4
+
+
+class TestBatchTabSessionLoading:
+    """BatchTab _on_files_loaded interface"""
+
+    def test_multi_files_session_display(self, qapp):
+        with tempfile.TemporaryDirectory() as tmp:
+            for run in [4, 6, 8, 10]:
+                _create_fake_fif(os.path.join(tmp, f'S001R{run:02d}.fif'))
+            paths = [os.path.join(tmp, f'S001R{run:02d}.fif') for run in [4, 6, 8, 10]]
+            from bci.gui.batch_tab import BatchTab
+            tab = BatchTab()
+            tab._on_files_loaded(paths)
+            assert len(tab._filepaths) == 4
+            assert "4 runs" in tab.status_label.text()
+
+    def test_load_single_file(self, qapp):
+        with tempfile.TemporaryDirectory() as tmp:
+            _create_fake_fif(os.path.join(tmp, 'solo.fif'))
+            from bci.gui.batch_tab import BatchTab
+            tab = BatchTab()
+            tab._on_files_loaded([os.path.join(tmp, 'solo.fif')])
+            assert len(tab._filepaths) == 1
+            assert "Loaded" in tab.status_label.text()
