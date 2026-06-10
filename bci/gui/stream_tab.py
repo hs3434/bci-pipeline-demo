@@ -33,7 +33,9 @@ class StreamTab(QWidget):
         self._source: Optional[object] = None
         self._stream_source: Optional[object] = None
         self._worker: Optional[StreamWorker] = None
+        self._worker_thread = None
         self._load_worker: Optional[LoadWorker] = None
+        self._load_thread = None
         self._model_path: Optional[str] = None
         self._setup_ui()
 
@@ -192,12 +194,17 @@ class StreamTab(QWidget):
 
     def _stop_workers(self):
         if self._worker is not None:
-            self._worker.pause()
+            self._worker.stop()
             self._worker = None
-        if self._load_worker is not None and self._load_worker.isRunning():
-            self._load_worker.quit()
-            self._load_worker.wait()
-            self._load_worker = None
+        if self._worker_thread is not None and self._worker_thread.isRunning():
+            self._worker_thread.quit()
+            self._worker_thread.wait()
+            self._worker_thread = None
+        if self._load_thread is not None and self._load_thread.isRunning():
+            self._load_thread.quit()
+            self._load_thread.wait()
+            self._load_thread = None
+        self._load_worker = None
         self.info_panel.clear()
 
     def shutdown(self):
@@ -228,7 +235,7 @@ class StreamTab(QWidget):
         self._load_worker.load_progress.connect(self._on_load_progress)
         self._load_worker.finished.connect(self._on_load_finished)
         self._load_worker.error.connect(self._on_load_error)
-        self._load_worker.start()
+        self._load_thread = self._load_worker.start_in_thread()
 
     def _on_load_progress(self, current: int, total: int):
         self.load_label.setText(f"Loading run {current}/{total}...")
@@ -239,6 +246,7 @@ class StreamTab(QWidget):
         from bci.source import StreamSource
         self._stream_source = StreamSource(eeg)
         self._load_worker = None
+        self._load_thread = None
         self.load_progress_bar.setVisible(False)
         self.load_label.setVisible(False)
         self.info_panel.show_stream(self._stream_source)
@@ -250,6 +258,7 @@ class StreamTab(QWidget):
 
     def _on_load_error(self, msg: str):
         self._load_worker = None
+        self._load_thread = None
         self.load_progress_bar.setVisible(False)
         self.load_label.setVisible(False)
         self.log_area.append(f"ERROR: {msg}")
@@ -297,7 +306,7 @@ class StreamTab(QWidget):
             except Exception as e:
                 self.log_area.append(f"Model load error: {e}")
 
-        self._worker.start()
+        self._worker_thread = self._worker.start_in_thread()
 
     def _on_pause(self):
         if self._worker is not None:
@@ -328,7 +337,7 @@ class StreamTab(QWidget):
         self.spectrum_widget.update_psd(chunk, self._stream_source.sfreq)
         self.info_panel.update_elapsed(self._stream_source)
 
-    def _on_stream_finished(self):
+    def _on_stream_finished(self, _=None):
         self.status_label.setText("Playback complete")
         self.pause_btn.setEnabled(False)
         self.stop_btn.setEnabled(False)

@@ -28,7 +28,9 @@ class BatchTab(QWidget):
         self._source: Optional[object] = None
         self._config = create_default_config()
         self._worker: Optional[BatchWorker] = None
+        self._worker_thread = None
         self._load_worker: Optional[LoadWorker] = None
+        self._load_thread = None
         self._pipeline: object = None
         self._setup_ui()
 
@@ -86,12 +88,14 @@ class BatchTab(QWidget):
             self._decode_page.refresh_chart()
 
     def _stop_workers(self):
-        for w in (self._worker, self._load_worker):
-            if w is not None and w.isRunning():
-                w.quit()
-                w.wait()
+        for thread in (self._worker_thread, self._load_thread):
+            if thread is not None and thread.isRunning():
+                thread.quit()
+                thread.wait()
         self._worker = None
+        self._worker_thread = None
         self._load_worker = None
+        self._load_thread = None
 
     def shutdown(self):
         self._stop_workers()
@@ -127,11 +131,12 @@ class BatchTab(QWidget):
         self._load_worker.load_progress.connect(self._main_page.show_load_progress)
         self._load_worker.finished.connect(self._on_load_finished)
         self._load_worker.error.connect(self._on_load_error)
-        self._load_worker.start()
+        self._load_thread = self._load_worker.start_in_thread()
 
     def _on_load_finished(self, source):
         self._source = source
         self._load_worker = None
+        self._load_thread = None
         self._main_page.hide_load_progress()
         self._main_page.show_batch_info(source)
         self.status_label.setText(
@@ -152,6 +157,7 @@ class BatchTab(QWidget):
 
     def _on_load_error(self, msg: str):
         self._load_worker = None
+        self._load_thread = None
         self._main_page.hide_load_progress()
         self.status_label.setText(f"Load error: {msg[:50]}")
         QMessageBox.warning(self, "Load Error", msg)
@@ -186,7 +192,7 @@ class BatchTab(QWidget):
         self._worker.steps_skipped.connect(self._on_steps_skipped)
         self._worker.finished.connect(self._on_finished)
         self._worker.error.connect(self._on_error)
-        self._worker.start()
+        self._worker_thread = self._worker.start_in_thread()
 
     _STEP_IDX = {'load': 0, 'preprocess': 1, 'create_epochs': 2, 'decode': 3}
 
@@ -196,7 +202,8 @@ class BatchTab(QWidget):
             if idx is not None:
                 self.step_strip.set_status(idx, StepStatus.STALE)
 
-    def _on_finished(self, result, pipeline):
+    def _on_finished(self, payload):
+        result, pipeline = payload
         self._pipeline = pipeline
         # Mark non-skipped steps as DONE
         skipped_set = set(result.steps_skipped) if result else set()

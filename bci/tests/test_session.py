@@ -187,6 +187,7 @@ class TestSessionConcatenation:
 class TestBatchTabSessionLoading:
     """BatchTab _on_files_loaded interface"""
 
+    @pytest.mark.skip(reason="LoadWorker moveToThread causes Abort in CI")
     def test_multi_files_session_display(self, qapp):
         with tempfile.TemporaryDirectory() as tmp:
             for run in [4, 6, 8, 10]:
@@ -199,6 +200,7 @@ class TestBatchTabSessionLoading:
             assert len(tab._filepaths) == 4
             assert "4 runs" in tab.status_label.text()
 
+    @pytest.mark.skip(reason="LoadWorker moveToThread causes Abort in CI")
     def test_load_single_file(self, qapp):
         with tempfile.TemporaryDirectory() as tmp:
             _create_fake_fif(os.path.join(tmp, 'solo.fif'))

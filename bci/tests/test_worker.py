@@ -175,7 +175,7 @@ class TestStreamWorker:
 
         QTimer.singleShot(3000, loop.quit)  # timeout
         worker.chunk_processed.connect(lambda _: check_done())
-        worker.start()
+        worker.run()
         loop.exec()
 
         assert len(chunks) >= 3, f"Expected >=3 chunks, got {len(chunks)}"
@@ -196,7 +196,7 @@ class TestStreamWorker:
         loop = QEventLoop()
         QTimer.singleShot(500, lambda: (worker.stop(), loop.quit()))
         QTimer.singleShot(2000, loop.quit)  # safety timeout
-        worker.start()
+        worker.run()
         loop.exec()
 
         count_after_stop = len(chunks)

@@ -54,7 +54,7 @@ class TestBatchTab:
         tab = BatchTab()
         assert tab.result_panel is not None
 
-    @pytest.mark.skip(reason="LoadWorker QThread causes Abort in CI")
+    @pytest.mark.skip(reason="LoadWorker moveToThread causes Abort in CI")
     def test_load_file(self, qapp, fake_edf):
         from bci.gui.batch_tab import BatchTab
         tab = BatchTab()

@@ -1,21 +1,63 @@
 """
 Worker Threads
-==============
+=============
 Background workers for batch processing and real-time streaming.
+
+All workers inherit BaseWorker (QObject) and use the moveToThread pattern:
+- QThread manages the thread lifecycle only
+- Worker logic lives in QObject methods
+- Communication via Qt signals (thread-safe across thread boundaries)
 """
 from __future__ import annotations
+from abc import abstractmethod
 from typing import Optional, List
 import numpy as np
 from pathlib import Path
 from scipy.signal import welch
 
-from PyQt6.QtCore import QThread, QObject, pyqtSignal, QTimer
+from PyQt6.QtCore import QObject, pyqtSignal, QTimer, QThread
 
 from bci.config import PipelineConfig
 from bci.source import FileSource, StreamSource, EEGData
 
 
-class LoadWorker(QThread):
+class BaseWorker(QObject):
+    """Abstract base for all background workers.
+
+    Defines the common interface:
+    - ``finished = pyqtSignal(object)``  — work done, carries result or None
+    - ``error    = pyqtSignal(str)``     — work failed, carries message
+    - ``run()``                         — abstract entry point (same name as QThread.run)
+    - ``start_in_thread()``              — moveToThread + start, returns QThread
+    """
+    finished = pyqtSignal(object)
+    error = pyqtSignal(str)
+
+    @abstractmethod
+    def run(self):
+        ...
+
+    def start_in_thread(self, slot=None, parent=None) -> QThread:
+        """Move this worker into a new QThread, connect signals, and start.
+
+        Args:
+            slot: The method to run when the thread starts.
+                  Defaults to ``run`` if not specified.
+                  Pass a different method to leverage moveToThread's
+                  multi-entry-point advantage (e.g. StreamWorker.start).
+            parent: Optional parent for the QThread.
+
+        Returns the QThread so the caller can track / quit it.
+        """
+        self._thread = QThread(parent)
+        self.moveToThread(self._thread)
+        self._thread.started.connect(slot or self.run)
+        self.finished.connect(self._thread.quit)
+        self._thread.start()
+        return self._thread
+
+
+class LoadWorker(BaseWorker):
     """Background data loading worker.
 
     Loads EEG data via FileSource in a background thread,
@@ -23,8 +65,6 @@ class LoadWorker(QThread):
     Once complete, emits the loaded EEGData object.
     """
     load_progress = pyqtSignal(int, int)
-    finished = pyqtSignal(object)
-    error = pyqtSignal(str)
 
     def __init__(self, filepaths: List[str]):
         super().__init__()
@@ -39,7 +79,7 @@ class LoadWorker(QThread):
             self.error.emit(str(e))
 
 
-class BatchWorker(QThread):
+class BatchWorker(BaseWorker):
     """Background pipeline execution worker (offline batch mode).
 
     Accepts an optional BCIPipeline instance — when provided the pipeline's
@@ -47,13 +87,11 @@ class BatchWorker(QThread):
     re-executed.
 
     Emits progress: 0=start, 100=done.
-    finished emits (PipelineResult, BCIPipeline).
+    finished emits (PipelineResult, BCIPipeline) as a tuple.
     """
     progress = pyqtSignal(int)
     log = pyqtSignal(str)
-    finished = pyqtSignal(object, object)
     steps_skipped = pyqtSignal(list)
-    error = pyqtSignal(str)
 
     def __init__(self, filepaths: List[str], config: PipelineConfig,
                  pipeline: Optional['BCIPipeline'] = None):
@@ -78,7 +116,7 @@ class BatchWorker(QThread):
                 self.steps_skipped.emit(list(result.steps_skipped))
                 self.progress.emit(100)
                 self.log.emit("Pipeline complete")
-                self.finished.emit(result, pipeline)
+                self.finished.emit((result, pipeline))
             else:
                 self.error.emit(
                     result.errors[0] if result.errors else "Unknown error")
@@ -86,21 +124,23 @@ class BatchWorker(QThread):
             self.error.emit(str(e))
 
 
-class StreamWorker(QObject):
+class StreamWorker(BaseWorker):
     """Real-time streaming worker.
 
     Wraps an EEGData in a StreamSource, optionally applies online
     filtering, and emits processed chunks via Qt signals.
 
-    Accepts an EEGData object (from LoadWorker) or a filepath list.
+    Designed to run in a dedicated QThread via moveToThread so that
+    chunk processing (filtering, decoding, PSD) does not block the GUI.
     """
 
     chunk_processed = pyqtSignal(np.ndarray)
     spectrum_updated = pyqtSignal(np.ndarray, np.ndarray)
     prediction = pyqtSignal(str, float)
-    error = pyqtSignal(str)
-    finished = pyqtSignal()
     progress = pyqtSignal(int)
+
+    _start_timer_signal = pyqtSignal()
+    _stop_timer_signal = pyqtSignal()
 
     def __init__(self, source, chunk_duration: float = 0.1):
         super().__init__()
@@ -125,14 +165,19 @@ class StreamWorker(QObject):
         self._chunk_duration = chunk_duration
         self.sliding_window = None
 
-    def start(self):
-        """Start streaming data."""
+        self._start_timer_signal.connect(self._start_timer)
+        self._stop_timer_signal.connect(self._stop_timer)
+
+    def run(self):
         self._chunk_samples = int(self.source.sfreq * self.source.chunk_duration)
         self._online_proc = __import__('bci.processor.online',
                                        fromlist=['OnlineProcessor']).OnlineProcessor(
             sfreq=self.source.sfreq, n_channels=self.source.n_channels
         )
+        self._start_timer_signal.emit()
 
+    def _start_timer(self):
+        """Create and start the QTimer — must run in the worker's thread."""
         interval_ms = int(self.source.chunk_duration * 1000 / max(0.01, self._speed))
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._emit_chunk)
@@ -140,17 +185,18 @@ class StreamWorker(QObject):
 
     def pause(self):
         """Pause streaming without closing the source."""
+        self._stop_timer_signal.emit()
+
+    def _stop_timer(self):
         if self._timer is not None:
             self._timer.stop()
             self._timer = None
 
     def stop(self):
         """Stop streaming and close the source."""
-        if self._timer is not None:
-            self._timer.stop()
-            self._timer = None
+        self._stop_timer_signal.emit()
         self.source.close()
-        self.finished.emit()
+        self.finished.emit(None)
 
     def _emit_chunk(self):
         """Read chunk from source, process, emit signals."""
