@@ -7,6 +7,9 @@ from __future__ import annotations
 
 from PyQt6.QtWidgets import QWidget, QHBoxLayout, QLabel, QFrame
 
+from bci.source.stream_source import StreamSource
+from bci.source.types import EEGSource
+
 
 class EEGInfoPanel(QFrame):
     """Info bar showing loaded EEG data.
@@ -74,7 +77,7 @@ class EEGInfoPanel(QFrame):
     # Public API
     # ----------------------------------------------------------------
 
-    def show_batch(self, source) -> None:
+    def show_batch(self, source: EEGSource) -> None:
         """Populate with static overview (batch mode)."""
         self._clear_fields()
         self._mode = "batch"
@@ -102,7 +105,7 @@ class EEGInfoPanel(QFrame):
 
         self.setVisible(True)
 
-    def show_stream(self, source) -> None:
+    def show_stream(self, source: StreamSource) -> None:
         """Set up live monitor layout (stream mode)."""
         self._clear_fields()
         self._mode = "stream"
@@ -124,7 +127,7 @@ class EEGInfoPanel(QFrame):
 
         self.setVisible(True)
 
-    def update_elapsed(self, source) -> None:
+    def update_elapsed(self, source: StreamSource) -> None:
         """Update live elapsed time in stream mode."""
         if self._mode != "stream":
             return
@@ -163,10 +166,10 @@ class EEGInfoPanel(QFrame):
 # Helpers
 # ----------------------------------------------------------------
 
-def _display_name(source) -> str:
+def _display_name(source: EEGSource) -> str:
     import re
     from pathlib import Path
-    path = getattr(source, 'source_path', None) or getattr(source, 'filepath', None)
+    path = getattr(source, 'filepath', None)
     if path:
         stem = Path(str(path)).stem
         m = re.match(r'^(.*)R\d+$', stem)
@@ -174,7 +177,7 @@ def _display_name(source) -> str:
     return "EEG Data"
 
 
-def _channel_label(source) -> str:
+def _channel_label(source: EEGSource) -> str:
     if hasattr(source, 'ch_names'):
         names = source.ch_names[:6]
         suffix = f" +{len(source.ch_names) - 6}" if len(source.ch_names) > 6 else ""
