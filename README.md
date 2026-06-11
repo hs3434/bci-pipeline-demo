@@ -47,7 +47,7 @@ bci --gui
 │  └─────┬──────┘     └─────┬──────────────────┘   │
 │  ┌─────┴──────┐     ┌─────┴──────────────┐       │
 │  │ BatchWorker │     │ StreamWorker        │       │
-│  │ (QThread)   │     │ (QTimer+QObject)    │       │
+│  │ (QObject)   │     │ (QObject+QTimer)    │       │
 │  └─────┬──────┘     └─────┬──────────────┘       │
 └────────┼──────────────────┼───────────────────────┘
          │                  │
@@ -98,7 +98,7 @@ All decoders share a common `fit/predict/predict_proba/save/load` interface and 
 
 ## GUI
 
-**Batch tab**: 4-step pipeline with visual progress indicators, `QThread` background execution.
+**Batch tab**: 4-step pipeline with visual progress indicators, background execution via `BaseWorker.moveToThread` pattern.
 
 **Stream tab**: Real-time playback with speed control (0.25×–100×), live waveform/spectrum/topomap visualization, sliding-window prediction with loaded models.
 
