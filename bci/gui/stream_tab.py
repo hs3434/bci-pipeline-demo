@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import (
     QGroupBox, QDoubleSpinBox, QSlider, QCheckBox, QTextEdit,
     QProgressBar, QMessageBox, QFileDialog, QSpinBox,
 )
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QThread
 
 from bci.gui.widgets import (
     EEGWaveformWidget, SpectrumWidget, TopomapWidget, ResultPanel,
@@ -30,12 +30,12 @@ class StreamTab(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._filepaths: List[str] = []
-        self._source: Optional[object] = None
-        self._stream_source: Optional[object] = None
+        self._source: Optional['mne.io.Raw'] = None
+        self._stream_source: Optional['StreamSource'] = None
         self._worker: Optional[StreamWorker] = None
-        self._worker_thread = None
+        self._worker_thread: Optional[QThread] = None
         self._load_worker: Optional[LoadWorker] = None
-        self._load_thread = None
+        self._load_thread: Optional[QThread] = None
         self._model_path: Optional[str] = None
         self._setup_ui()
 
@@ -193,18 +193,13 @@ class StreamTab(QWidget):
             self._on_files_loaded([str(p) for p in filepaths])
 
     def _stop_workers(self):
-        if self._worker is not None:
-            self._worker.stop()
-            self._worker = None
-        if self._worker_thread is not None and self._worker_thread.isRunning():
-            self._worker_thread.quit()
-            self._worker_thread.wait()
-            self._worker_thread = None
-        if self._load_thread is not None and self._load_thread.isRunning():
-            self._load_thread.quit()
-            self._load_thread.wait()
-            self._load_thread = None
+        for w in (self._worker, self._load_worker):
+            if w is not None:
+                w.cleanup()
+        self._worker = None
         self._load_worker = None
+        self._worker_thread = None
+        self._load_thread = None
         self.info_panel.clear()
 
     def shutdown(self):
@@ -242,9 +237,9 @@ class StreamTab(QWidget):
         self.load_progress_bar.setMaximum(total)
         self.load_progress_bar.setValue(current)
 
-    def _on_load_finished(self, eeg):
+    def _on_load_finished(self, source: 'mne.io.Raw'):
         from bci.source import StreamSource
-        self._stream_source = StreamSource(eeg, source_path=self._filepaths[0] if self._filepaths else None)
+        self._stream_source = StreamSource(source, filepath=self._filepaths[0] if self._filepaths else None)
         self._load_worker = None
         self._load_thread = None
         self.load_progress_bar.setVisible(False)
