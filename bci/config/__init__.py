@@ -6,14 +6,11 @@ BCI Pipeline Configuration - YAML/dataclass/validation
 
 from __future__ import annotations
 from dataclasses import dataclass, field, asdict
-from typing import List, Optional, Tuple, Dict, Any, TYPE_CHECKING
+from typing import List, Optional, Tuple, Dict, Any
 from pathlib import Path
 
 import yaml
 import logging
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 

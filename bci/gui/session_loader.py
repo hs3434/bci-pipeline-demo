@@ -32,7 +32,7 @@ class SessionDialog(QDialog):
 
     def _setup_ui(self):
         session_name = self._runs[0].stem
-        match = __import__('re').match(r'^(.*)R\d+$', session_name)
+        match = re.match(r'^(.*)R\d+$', session_name)
         if match:
             session_name = match.group(1)
 

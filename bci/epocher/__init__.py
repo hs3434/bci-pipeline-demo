@@ -65,8 +65,6 @@ class Epocher:
         Returns:
             Events array (n_events, 3)
         """
-        if self.raw is None:
-            raise RuntimeError("No raw data loaded, call load() first")
         import mne
 
         if prefer_annotations:
