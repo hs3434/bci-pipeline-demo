@@ -45,13 +45,16 @@ class TestBatchWorker:
 
     def test_construction(self, qapp, fake_edf, default_config):
         from bci.gui.worker import BatchWorker
-        worker = BatchWorker([fake_edf], default_config)
+        from bci.source import FileSource
+        source = FileSource.load(fake_edf)
+        worker = BatchWorker(source, default_config)
         assert worker is not None
-        assert worker.filepaths == [str(fake_edf)]
 
     def test_signals_exist(self, qapp, fake_edf, default_config):
         from bci.gui.worker import BatchWorker
-        worker = BatchWorker([fake_edf], default_config)
+        from bci.source import FileSource
+        source = FileSource.load(fake_edf)
+        worker = BatchWorker(source, default_config)
         assert hasattr(worker, 'progress')
         assert hasattr(worker, 'log')
         assert hasattr(worker, 'finished')
@@ -59,8 +62,10 @@ class TestBatchWorker:
 
     def test_run_emits_signals(self, qapp, fake_edf, default_config):
         from bci.gui.worker import BatchWorker
+        from bci.source import FileSource
+        source = FileSource.load(fake_edf)
 
-        worker = BatchWorker([fake_edf], default_config)
+        worker = BatchWorker(source, default_config)
         logs = []
         progresses = []
         errors = []
@@ -80,9 +85,9 @@ class TestBatchWorker:
         # Both finished and error signals should not both be emitted
         assert len(results) + len(errors) > 0, "Should emit finished or error"
 
-    def test_run_with_invalid_file_emits_error(self, qapp, default_config):
+    def test_run_with_no_source_emits_error(self, qapp, default_config):
         from bci.gui.worker import BatchWorker
-        worker = BatchWorker(["/nonexistent/file.edf"], default_config)
+        worker = BatchWorker(None, default_config)
         errors = []
         worker.error.connect(errors.append)
         worker.run()

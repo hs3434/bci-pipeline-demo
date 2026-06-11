@@ -61,8 +61,12 @@ def run_cli(args):
 
     logger.info(f"Processing: {args.filepath}")
 
+    from bci.source import FileSource
+    raw = FileSource.load(args.filepath)
+
     pipeline = BCIPipeline(config)
-    result = pipeline.run(args.filepath)
+    pipeline.load_raw(raw)
+    result = pipeline.run()
 
     if result.success:
         logger.info("=" * 50)

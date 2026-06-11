@@ -19,7 +19,7 @@ from PyQt6.QtCore import QObject, pyqtSignal, QTimer, QThread
 
 from bci.config import PipelineConfig
 from bci.source import FileSource, StreamSource
-
+from bci.pipeline import BCIPipeline
 
 class BaseWorker(QObject):
     """Abstract base for all background workers.
@@ -93,22 +93,23 @@ class BatchWorker(BaseWorker):
     log = pyqtSignal(str)
     steps_skipped = pyqtSignal(list)
 
-    def __init__(self, filepaths: List[str], config: PipelineConfig,
+    def __init__(self, source, config: PipelineConfig,
                  pipeline: Optional['BCIPipeline'] = None):
         super().__init__()
-        self.filepaths = list(filepaths)
+        self.source = source
         self.config = config
         self._pipeline = pipeline
 
     def run(self):
         try:
-            from bci.pipeline import BCIPipeline
-
             pipeline = self._pipeline or BCIPipeline(self.config)
             self.progress.emit(0)
-            self.log.emit(f"Processing: {self.filepaths[0]}")
+            self.log.emit("Processing loaded data")
 
-            result = pipeline.run(Path(self.filepaths[0]))
+            if 'load' not in pipeline._steps:
+                pipeline.load_raw(self.source)
+
+            result = pipeline.run()
 
             if result.success:
                 self.log.emit(

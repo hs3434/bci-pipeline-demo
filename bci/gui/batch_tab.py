@@ -193,7 +193,7 @@ class BatchTab(QWidget):
         self._pages.setCurrentIndex(1)
         self.step_strip.set_active(1)
 
-        self._worker = BatchWorker(self._filepaths, self._config,
+        self._worker = BatchWorker(self._source, self._config,
                                    pipeline=self._pipeline)
         self._worker.log.connect(self._main_page.append_log)
         self._worker.progress.connect(self._main_page.set_pipeline_progress)
@@ -248,13 +248,14 @@ class BatchTab(QWidget):
         QMessageBox.warning(self, "Pipeline Error", msg)
 
     def _on_save(self):
-        if not self._filepaths:
+        if self._source is None:
             return
         pipeline = self._pipeline
         if pipeline is None:
             from bci.pipeline import BCIPipeline
             pipeline = BCIPipeline(self._config)
-            pipeline.run(Path(self._filepaths[0]))
+            pipeline.load_raw(self._source)
+            pipeline.run()
         saved = pipeline.save_results()
         self._main_page.append_log(f"Saved to: {saved}")
         QMessageBox.information(

@@ -63,17 +63,18 @@ class BCIPipeline:
         # Full run
         >>> config = create_default_config()
         >>> pipeline = BCIPipeline(config)
-        >>> result = pipeline.run('data.edf')
+        >>> pipeline.load_raw(raw)
+        >>> result = pipeline.run()
         >>> print(f"Accuracy: {result.accuracy:.3f}")
 
         # Change params, re-run — only affected steps execute
         >>> pipeline.config.epoch.tmin = -0.5
-        >>> result = pipeline.run('data.edf')
+        >>> result = pipeline.run()
         >>> print(f"Skipped: {result.steps_skipped}")
 
         # Step-by-step (bypasses state tracking)
         >>> pipeline = BCIPipeline(config)
-        >>> pipeline.load('data.edf').preprocess().create_epochs().decode()
+        >>> pipeline.load_raw(raw).preprocess().create_epochs().decode()
     """
 
     def __init__(self, config: 'PipelineConfig'):
@@ -86,7 +87,6 @@ class BCIPipeline:
         self.result: Optional[PipelineResult] = None
 
         self._raw_original: Optional['mne.io.Raw'] = None
-        self._loaded_filepath: str = ''
         self._steps: List[str] = []
         self._states: Dict[str, _StepState] = {}
 
@@ -94,22 +94,13 @@ class BCIPipeline:
     # Step methods — each returns self for fluent chaining
     # ------------------------------------------------------------------
 
-    def load(self, filepath: Path | str) -> 'BCIPipeline':
-        """Load EEG data"""
-        from bci.source import FileSource
-
-        self.logger.info(f"Loading data: {filepath}")
-        try:
-            raw_data = FileSource.load(filepath)
-            self._raw_original = raw_data
-            self.raw = raw_data
-            self._loaded_filepath = str(filepath)
-            self._steps.append('load')
-            self.logger.info(f"Loaded: {len(self.raw.ch_names)} channels")
-            return self
-        except Exception as e:
-            self.logger.error(f"Load failed: {e}")
-            raise
+    def load_raw(self, raw) -> 'BCIPipeline':
+        """Load from an already-loaded MNE Raw object."""
+        self._raw_original = raw
+        self.raw = raw
+        self._steps.append('load')
+        self.logger.info(f"Loaded: {len(self.raw.ch_names)} channels")
+        return self
 
     def preprocess(self) -> 'BCIPipeline':
         """Preprocess data (always starts from original unfiltered raw)."""
@@ -228,7 +219,7 @@ class BCIPipeline:
     def _param_snapshot(self, step: str) -> tuple:
         """Build a hashable, comparable tuple of the current config for *step*."""
         if step == 'load':
-            return (self._loaded_filepath,)
+            return ()
         elif step == 'preprocess':
             cfg = self.config.filter
             return (cfg.l_freq, cfg.h_freq, tuple(cfg.notch_freqs))
@@ -245,21 +236,20 @@ class BCIPipeline:
     # Main entry: run() with incremental re-run logic
     # ------------------------------------------------------------------
 
-    def run(self, filepath: Path | str,
+    def run(self,
             events: Optional['np.ndarray'] = None,
             event_id: Optional[Dict[str, int]] = None) -> PipelineResult:
         """Run pipeline, reusing unchanged upstream steps.
 
+        Data must already be loaded via load_raw() before calling run().
+
         Args:
-            filepath: Path to EEG file.
             events: Events array (optional).
             event_id: Event ID dict (optional).
 
         Returns:
             PipelineResult
         """
-        self._loaded_filepath = str(filepath)
-
         # Determine which step is the first one that needs re-running
         skipped: List[str] = []
         start_idx = self._find_invalid_from()
@@ -282,7 +272,8 @@ class BCIPipeline:
             for idx in range(start_idx, len(_STEP_ORDER)):
                 step = _STEP_ORDER[idx]
                 if step == 'load':
-                    self.load(filepath)
+                    if 'load' not in self._steps:
+                        raise RuntimeError("No data loaded, call load_raw() first")
                 elif step == 'preprocess':
                     self.preprocess()
                 elif step == 'create_epochs':
@@ -361,5 +352,8 @@ class BCIPipeline:
 
 def run_pipeline(config: 'PipelineConfig', filepath: Path | str) -> PipelineResult:
     """Convenience function to run pipeline"""
+    from bci.source import FileSource
     pipeline = BCIPipeline(config)
-    return pipeline.run(filepath)
+    raw = FileSource.load(filepath)
+    pipeline.load_raw(raw)
+    return pipeline.run()

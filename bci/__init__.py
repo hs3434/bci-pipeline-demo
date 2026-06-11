@@ -20,7 +20,8 @@ Usage:
 
     config = PipelineConfig()
     pipeline = BCIPipeline(config)
-    result = pipeline.run('data.edf')
+    pipeline.load_raw(raw)
+    result = pipeline.run()
 """
 
 from __future__ import annotations
