@@ -125,7 +125,7 @@ class EpochPage(QFrame):
                 mapping[name.strip()] = int(code.strip())
         return mapping or None
 
-    def refresh_chart(self, pipeline: Optional[object] = None):
+    def refresh_chart(self, data: Optional['BCIPipeline'] = None):
         self._fig.clear()
         gs = gridspec.GridSpec(2, 1, figure=self._fig, height_ratios=[3, 1],
                               hspace=0.3)
@@ -134,7 +134,7 @@ class EpochPage(QFrame):
         self._fig.set_facecolor('#1e1e1e')
 
         try:
-            epochs = pipeline.epochs if pipeline is not None else None
+            epochs = data.epochs if data is not None else None
             if epochs is None or len(epochs) == 0:
                 self._info_label.setText("")
                 for ax in (ax_erp, ax_rej):

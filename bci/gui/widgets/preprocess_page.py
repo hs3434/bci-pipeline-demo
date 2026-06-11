@@ -66,21 +66,21 @@ class PreprocessPage(QFrame):
     def h_freq(self) -> float:
         return self._h_freq.value()
 
-    def refresh_chart(self, source: Optional[object] = None):
+    def refresh_chart(self, data: Optional['mne.io.Raw'] = None):
         ax = self._fig.axes[0]
         ax.clear()
         ax.set_facecolor('#1e1e1e')
         for spine in ax.spines.values():
             spine.set_color('#444')
         try:
-            if source is None:
+            if data is None:
                 ax.text(0.5, 0.5, "No data loaded", transform=ax.transAxes,
                         ha='center', va='center', color='#555')
             else:
-                sfreq = source.info['sfreq']
-                n_fft = min(2048, source.n_times)
-                psd, freqs = source.compute_psd(
-                    fmax=min(source.info['sfreq'] / 2, 80),
+                sfreq = data.info['sfreq']
+                n_fft = min(2048, data.n_times)
+                psd, freqs = data.compute_psd(
+                    fmax=min(data.info['sfreq'] / 2, 80),
                     n_fft=n_fft, verbose=False).get_data(return_freqs=True)
 
                 psd_db = 10 * np.log10(psd ** 2 + 1e-20)

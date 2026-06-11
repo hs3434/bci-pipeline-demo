@@ -4,7 +4,7 @@ Main Page
 Overview page: Info Panel + Waveform (scrollable) + Results + Log + Progress.
 """
 from __future__ import annotations
-from typing import Optional
+from typing import List, Optional
 
 import numpy as np
 from PyQt6.QtWidgets import (
@@ -27,7 +27,7 @@ class MainPage(QFrame):
         super().__init__(parent)
         self._full_data: Optional[np.ndarray] = None
         self._sfreq: float = 256.0
-        self._ch_names: list = []
+        self._ch_names: List[str] = []
         self._window_sec: float = 5.0
 
         layout = QVBoxLayout(self)
@@ -83,10 +83,10 @@ class MainPage(QFrame):
     def result_panel(self) -> ResultPanel:
         return self._result_panel
 
-    def show_batch_info(self, source):
+    def show_batch_info(self, source: 'mne.io.Raw'):
         self._info_panel.show_batch(source)
 
-    def show_stream_info(self, source):
+    def show_stream_info(self, source: 'StreamSource'):
         self._info_panel.show_stream(source)
 
     def clear_info(self):

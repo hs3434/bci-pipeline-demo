@@ -235,7 +235,7 @@ class BatchTab(QWidget):
                 result.accuracy, result.std,
                 result.cv_scores, self._decode_page.method,
             )
-            self._epoch_page.refresh_chart(pipeline)
+            self._epoch_page.refresh_chart(self._pipeline)
 
         self._pages.setCurrentIndex(0)
         self.step_strip.set_active(0)
