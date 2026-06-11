@@ -1,7 +1,7 @@
 """
 Preprocess Page
 ===============
-Filter parameter configuration + raw data preview chart.
+Filter parameter configuration + PSD before/after comparison chart.
 """
 from __future__ import annotations
 from typing import Optional
@@ -77,19 +77,38 @@ class PreprocessPage(QFrame):
                 ax.text(0.5, 0.5, "No data loaded", transform=ax.transAxes,
                         ha='center', va='center', color='#555')
             else:
-                d = source.get_data()
-                n_ch = min(8, d.shape[0])
-                n_samples = min(500, d.shape[1])
-                t = np.arange(n_samples) / source.info['sfreq']
-                for i in range(n_ch):
-                    ax.plot(t, d[i, :n_samples] * 1e6 + i * 50,
-                            linewidth=0.3, color='#00ff88')
-                ax.set_title(f"Raw — first {n_ch} ch", color='white', fontsize=8)
-                ax.set_xlabel("Time (s)", color='white', fontsize=7)
-                ax.set_yticks([i * 50 for i in range(n_ch)])
-                ax.set_yticklabels(
-                    source.ch_names[:n_ch] if hasattr(source, 'ch_names') else [f'Ch {i}' for i in range(n_ch)],
-                    fontsize=6)
+                sfreq = source.info['sfreq']
+                n_fft = min(2048, source.n_times)
+                psd, freqs = source.compute_psd(
+                    fmax=min(source.info['sfreq'] / 2, 80),
+                    n_fft=n_fft, verbose=False).get_data(return_freqs=True)
+
+                psd_db = 10 * np.log10(psd ** 2 + 1e-20)
+                mean_psd = psd_db.mean(axis=0)
+
+                ax.plot(freqs, mean_psd, linewidth=0.8, color='#5588ff',
+                        alpha=0.6, label='Before')
+
+                l_freq = self.l_freq
+                h_freq = self.h_freq
+                mask = (freqs >= l_freq) & (freqs <= h_freq)
+                ax.fill_between(freqs, mean_psd.min(), mean_psd.max(),
+                                where=mask, color='#00ff88', alpha=0.08)
+                ax.plot(freqs[mask], mean_psd[mask], linewidth=1.0,
+                        color='#00ff88', label='Passband')
+
+                ax.axvline(l_freq, color='#ff6644', linewidth=0.8,
+                           linestyle='--', alpha=0.7)
+                ax.axvline(h_freq, color='#ff6644', linewidth=0.8,
+                           linestyle='--', alpha=0.7)
+
+                ax.set_title(
+                    f"PSD — {l_freq:.1f}–{h_freq:.0f} Hz",
+                    color='white', fontsize=8)
+                ax.set_xlabel("Frequency (Hz)", color='white', fontsize=7)
+                ax.set_ylabel("dB", color='white', fontsize=7)
+                ax.legend(fontsize=6, facecolor='#1e1e1e', edgecolor='none',
+                          labelcolor='white', loc='upper right')
                 ax.tick_params(colors='white', labelsize=6)
         except Exception:
             pass
