@@ -10,7 +10,7 @@ All workers inherit BaseWorker (QObject) and use the moveToThread pattern:
 """
 from __future__ import annotations
 from abc import abstractmethod
-from typing import Optional, List
+from typing import Optional, List, Union
 import numpy as np
 from pathlib import Path
 from scipy.signal import welch
@@ -114,7 +114,7 @@ class BatchWorker(BaseWorker):
     log = pyqtSignal(str)
     steps_skipped = pyqtSignal(list)
 
-    def __init__(self, source, config: PipelineConfig,
+    def __init__(self, source: 'mne.io.Raw', config: PipelineConfig,
                  pipeline: Optional['BCIPipeline'] = None):
         super().__init__()
         self.source = source
@@ -164,7 +164,7 @@ class StreamWorker(BaseWorker):
     _start_timer_signal = pyqtSignal()
     _stop_timer_signal = pyqtSignal()
 
-    def __init__(self, source, chunk_duration: float = 0.1):
+    def __init__(self, source: Union['StreamSource', 'mne.io.Raw'], chunk_duration: float = 0.1):
         super().__init__()
 
         if isinstance(source, StreamSource):
@@ -190,8 +190,8 @@ class StreamWorker(BaseWorker):
 
     def run(self):
         self._chunk_samples = int(self.source.sfreq * self.source.chunk_duration)
-        self._online_proc = __import__('bci.processor.online',
-                                       fromlist=['OnlineProcessor']).OnlineProcessor(
+        from bci.processor.online import OnlineProcessor
+        self._online_proc = OnlineProcessor(
             sfreq=self.source.sfreq, n_channels=self.source.n_channels
         )
         self._start_timer_signal.emit()
