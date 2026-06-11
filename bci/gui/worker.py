@@ -59,7 +59,6 @@ class BaseWorker(QObject):
         self.moveToThread(self._thread)
         self._thread.started.connect(slot or self.run)
         self.finished.connect(self._thread.quit)
-        self.finished.connect(self._thread.wait)
         self._thread.start()
         return self._thread
 
