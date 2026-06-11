@@ -10,11 +10,14 @@ import numpy as np
 from PyQt6.QtWidgets import (
     QFrame, QHBoxLayout, QLabel, QGroupBox, QDoubleSpinBox,
 )
+from PyQt6.QtCore import pyqtSignal
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 
 
 class PreprocessPage(QFrame):
+
+    filter_changed = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -28,12 +31,14 @@ class PreprocessPage(QFrame):
         self._l_freq.setRange(0.1, 10)
         self._l_freq.setValue(0.5)
         self._l_freq.setSuffix(" Hz")
+        self._l_freq.valueChanged.connect(self.filter_changed.emit)
         glay.addWidget(self._l_freq)
         glay.addWidget(QLabel("Highcut:"))
         self._h_freq = QDoubleSpinBox()
         self._h_freq.setRange(10, 100)
         self._h_freq.setValue(40)
         self._h_freq.setSuffix(" Hz")
+        self._h_freq.valueChanged.connect(self.filter_changed.emit)
         glay.addWidget(self._h_freq)
         glay.addStretch()
         grp.setLayout(glay)
@@ -68,21 +73,23 @@ class PreprocessPage(QFrame):
         for spine in ax.spines.values():
             spine.set_color('#444')
         try:
-            d = getattr(source, 'data', None)
-            if source is None or d is None:
+            if source is None:
                 ax.text(0.5, 0.5, "No data loaded", transform=ax.transAxes,
                         ha='center', va='center', color='#555')
             else:
+                d = source.get_data()
                 n_ch = min(8, d.shape[0])
                 n_samples = min(500, d.shape[1])
-                t = np.arange(n_samples) / source.sfreq
+                t = np.arange(n_samples) / source.info['sfreq']
                 for i in range(n_ch):
                     ax.plot(t, d[i, :n_samples] * 1e6 + i * 50,
                             linewidth=0.3, color='#00ff88')
                 ax.set_title(f"Raw — first {n_ch} ch", color='white', fontsize=8)
                 ax.set_xlabel("Time (s)", color='white', fontsize=7)
                 ax.set_yticks([i * 50 for i in range(n_ch)])
-                ax.set_yticklabels([f'Ch {i}' for i in range(n_ch)], fontsize=6)
+                ax.set_yticklabels(
+                    source.ch_names[:n_ch] if hasattr(source, 'ch_names') else [f'Ch {i}' for i in range(n_ch)],
+                    fontsize=6)
                 ax.tick_params(colors='white', labelsize=6)
         except Exception:
             pass

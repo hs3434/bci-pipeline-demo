@@ -10,11 +10,14 @@ import numpy as np
 from PyQt6.QtWidgets import (
     QFrame, QHBoxLayout, QLabel, QGroupBox, QDoubleSpinBox,
 )
+from PyQt6.QtCore import pyqtSignal
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 
 
 class EpochPage(QFrame):
+
+    epoch_changed = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -28,18 +31,21 @@ class EpochPage(QFrame):
         self._tmin.setRange(-1.0, 0)
         self._tmin.setValue(-0.2)
         self._tmin.setSuffix(" s")
+        self._tmin.valueChanged.connect(self.epoch_changed.emit)
         glay.addWidget(self._tmin)
         glay.addWidget(QLabel("tmax:"))
         self._tmax = QDoubleSpinBox()
         self._tmax.setRange(0.1, 2.0)
         self._tmax.setValue(0.5)
         self._tmax.setSuffix(" s")
+        self._tmax.valueChanged.connect(self.epoch_changed.emit)
         glay.addWidget(self._tmax)
         glay.addWidget(QLabel("Reject:"))
         self._reject = QDoubleSpinBox()
         self._reject.setRange(50, 2000)
         self._reject.setValue(300)
         self._reject.setSuffix(" μV")
+        self._reject.valueChanged.connect(self.epoch_changed.emit)
         glay.addWidget(self._reject)
         glay.addStretch()
         grp.setLayout(glay)

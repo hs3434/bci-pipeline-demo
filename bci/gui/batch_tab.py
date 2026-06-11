@@ -69,6 +69,10 @@ class BatchTab(QWidget):
         self._epoch_page = EpochPage()
         self._decode_page = DecodePage()
 
+        self._preprocess_page.filter_changed.connect(self._on_filter_changed)
+        self._epoch_page.epoch_changed.connect(self._on_epoch_changed)
+        self._decode_page.decode_changed.connect(self._on_decode_changed)
+
         self._pages = QStackedWidget()
         self._pages.addWidget(self._main_page)
         self._pages.addWidget(self._preprocess_page)
@@ -78,14 +82,19 @@ class BatchTab(QWidget):
 
     def _on_step_clicked(self, idx: int):
         self._pages.setCurrentIndex(idx)
-        if idx == 0:
-            pass
-        elif idx == 1:
+
+    def _on_filter_changed(self):
+        if self._source is not None:
             self._preprocess_page.refresh_chart(self._source)
-        elif idx == 2:
-            self._epoch_page.refresh_chart(self._pipeline)
-        elif idx == 3:
-            self._decode_page.refresh_chart()
+
+    def _on_epoch_changed(self):
+        if self._pipeline is not None:
+            self.step_strip.set_status(2, StepStatus.STALE)
+            self.step_strip.set_status(3, StepStatus.STALE)
+
+    def _on_decode_changed(self):
+        if self._pipeline is not None:
+            self.step_strip.set_status(3, StepStatus.STALE)
 
     def _stop_workers(self):
         for thread in (self._worker_thread, self._load_thread):

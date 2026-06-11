@@ -10,11 +10,14 @@ import numpy as np
 from PyQt6.QtWidgets import (
     QFrame, QHBoxLayout, QLabel, QGroupBox, QComboBox, QSpinBox,
 )
+from PyQt6.QtCore import pyqtSignal
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 
 
 class DecodePage(QFrame):
+
+    decode_changed = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -26,11 +29,13 @@ class DecodePage(QFrame):
         glay.addWidget(QLabel("Method:"))
         self._method = QComboBox()
         self._method.addItems(['lda', 'ssvep', 'fbcca', 'cnn', 'transformer'])
+        self._method.currentTextChanged.connect(self.decode_changed.emit)
         glay.addWidget(self._method)
         glay.addWidget(QLabel("CV Folds:"))
         self._cv_folds = QSpinBox()
         self._cv_folds.setRange(2, 10)
         self._cv_folds.setValue(5)
+        self._cv_folds.valueChanged.connect(self.decode_changed.emit)
         glay.addWidget(self._cv_folds)
         glay.addStretch()
         grp.setLayout(glay)
