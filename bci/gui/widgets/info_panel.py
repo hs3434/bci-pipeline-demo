@@ -80,9 +80,9 @@ class EEGInfoPanel(QFrame):
         self._mode = "batch"
 
         name = _display_name(source)
-        n_ch = source.n_channels
-        sfreq = source.sfreq
-        duration = source.total_samples / sfreq if sfreq > 0 else 0
+        n_ch = source.info['nchan']
+        sfreq = source.info['sfreq']
+        duration = source.n_times / sfreq if sfreq > 0 else 0
 
         ch_names = _channel_label(source)
 
@@ -166,7 +166,7 @@ class EEGInfoPanel(QFrame):
 def _display_name(source) -> str:
     import re
     from pathlib import Path
-    path = getattr(source, 'source_path', None) or getattr(source, 'filepath', None)
+    path = getattr(source, 'source_path', None) or getattr(source, '_source_path', None) or getattr(source, 'filepath', None)
     if path:
         stem = Path(str(path)).stem
         m = re.match(r'^(.*)R\d+$', stem)

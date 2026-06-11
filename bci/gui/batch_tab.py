@@ -140,14 +140,13 @@ class BatchTab(QWidget):
         self._main_page.hide_load_progress()
         self._main_page.show_batch_info(source)
         self.status_label.setText(
-            f"Ready — {source.n_channels} ch, "
-            f"{source.total_samples / source.sfreq:.1f}s"
+            f"Ready — {source.info['nchan']} ch, "
+            f"{source.n_times / source.info['sfreq']:.1f}s"
         )
-        d = getattr(source, 'data', None)
-        if d is not None:
-            n_ch = min(8, d.shape[0])
-            ch_names = list(getattr(source, 'ch_names', [f'Ch {i}' for i in range(n_ch)]))
-            self._main_page.plot_waveform(d[:n_ch], source.sfreq, ch_names[:n_ch])
+        d = source.get_data()
+        n_ch = min(8, d.shape[0])
+        ch_names = list(source.ch_names[:n_ch])
+        self._main_page.plot_waveform(d[:n_ch], source.info['sfreq'], ch_names[:n_ch])
 
         self._pages.setCurrentIndex(0)
         self.step_strip.set_active(0)

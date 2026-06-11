@@ -18,7 +18,7 @@ from scipy.signal import welch
 from PyQt6.QtCore import QObject, pyqtSignal, QTimer, QThread
 
 from bci.config import PipelineConfig
-from bci.source import FileSource, StreamSource, EEGData
+from bci.source import FileSource, StreamSource
 
 
 class BaseWorker(QObject):
@@ -62,7 +62,7 @@ class LoadWorker(BaseWorker):
 
     Loads EEG data via FileSource in a background thread,
     emitting progress updates so the GUI can show a loading bar.
-    Once complete, emits the loaded EEGData object.
+    Once complete, emits the loaded MNE Raw object.
     """
     load_progress = pyqtSignal(int, int)
 
@@ -127,7 +127,7 @@ class BatchWorker(BaseWorker):
 class StreamWorker(BaseWorker):
     """Real-time streaming worker.
 
-    Wraps an EEGData in a StreamSource, optionally applies online
+    Wraps an MNE Raw in a StreamSource, optionally applies online
     filtering, and emits processed chunks via Qt signals.
 
     Designed to run in a dedicated QThread via moveToThread so that
@@ -145,12 +145,10 @@ class StreamWorker(BaseWorker):
     def __init__(self, source, chunk_duration: float = 0.1):
         super().__init__()
 
-        if isinstance(source, EEGData):
-            self.source = StreamSource(source, chunk_duration)
-        elif isinstance(source, StreamSource):
+        if isinstance(source, StreamSource):
             self.source = source
         else:
-            raise TypeError(f"Expected EEGData or StreamSource, got {type(source)}")
+            self.source = StreamSource(source, chunk_duration)
 
         self._model = None
         self._label_names: List[str] = []

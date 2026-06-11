@@ -100,7 +100,7 @@ class BCIPipeline:
 
         self.logger.info(f"Loading data: {filepath}")
         try:
-            raw_data = FileSource.load_raw(filepath)
+            raw_data = FileSource.load(filepath)
             self._raw_original = raw_data
             self.raw = raw_data
             self._loaded_filepath = str(filepath)
