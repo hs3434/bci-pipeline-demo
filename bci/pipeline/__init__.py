@@ -119,8 +119,7 @@ class BCIPipeline:
             self.logger.error(f"Preprocess failed: {e}")
             raise
 
-    def create_epochs(self, events: Optional['np.ndarray'] = None,
-                       event_id: Optional[Dict[str, int]] = None) -> 'BCIPipeline':
+    def create_epochs(self) -> 'BCIPipeline':
         """Create epochs"""
         from bci.epocher import Epocher
 
@@ -130,12 +129,11 @@ class BCIPipeline:
                 raise RuntimeError("No raw data preprocessed, call preprocess() first")
             epocher = Epocher(self.raw, self.config.epoch)
 
-            if events is None:
-                events = epocher.find_events()
-                self.events = events
+            events = epocher.find_events()
+            self.events = events
 
             self.epochs = epocher.extract_epochs(
-                events, event_id,
+                events,
                 tmin=self.config.epoch.tmin,
                 tmax=self.config.epoch.tmax,
                 baseline=self.config.epoch.baseline
