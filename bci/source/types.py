@@ -1,18 +1,20 @@
 """Shared type definitions for EEG data sources."""
 from __future__ import annotations
-from typing import Protocol, List, Optional, runtime_checkable
+from typing import Protocol, List, Optional
 
 import numpy as np
 
 
-@runtime_checkable
 class EEGSource(Protocol):
     """Structural interface satisfied by mne.io.Raw and StreamSource.
 
-    Both types expose the attributes needed by GUI consumers
-    (info panel, waveform plot, channel-name display). Runtime check
-    is opt-in via isinstance(); static type checkers use it
-    structurally.
+    Both types expose the attributes/info needed by GUI consumers
+    (info panel, waveform plot, channel-name display). Used for static
+    type checking only — the actual attributes live in different places
+    on each concrete type (mne.io.Raw uses .info / .filenames, StreamSource
+    exposes them as direct attrs), so runtime isinstance() is not
+    meaningful here. Consumers use getattr() for defensive attribute
+    access.
     """
     @property
     def ch_names(self) -> List[str]: ...
