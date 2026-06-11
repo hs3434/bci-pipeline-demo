@@ -1,7 +1,7 @@
 """
 Tests for bci.source.file_source module
 =========================================
-Session concatenation via FileSource.load() + StreamSource.
+Session concatenation via FileSource.load(list_of_paths) + StreamSource.
 """
 from __future__ import annotations
 import pytest
@@ -37,7 +37,7 @@ def _create_fake_fif(filepath: str, n_channels: int = 4,
 
 
 class TestFindSessionRuns:
-    """find_session_runs() utility (moved to file_source module)."""
+    """find_session_runs() utility."""
 
     def test_glob_finds_4_runs(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -68,48 +68,53 @@ class TestFindSessionRuns:
 
 
 class TestSessionConcatenation:
-    """FileSource.load(session=True) concatenates multiple runs."""
+    """FileSource.load(list_of_paths) concatenates multiple runs."""
 
     def test_total_samples_4_runs(self):
         with tempfile.TemporaryDirectory() as tmp:
+            paths = []
             for run in [4, 6, 8, 10]:
-                _create_fake_fif(os.path.join(tmp, f'S001R{run:02d}.fif'),
-                                 n_samples=1000)
+                fp = os.path.join(tmp, f'S001R{run:02d}.fif')
+                _create_fake_fif(fp, n_samples=1000)
+                paths.append(fp)
             from bci.source import FileSource
-            eeg = FileSource.load(
-                Path(tmp) / 'S001R04.fif', session=True)
-            assert eeg.total_samples == 4000
+            raw = FileSource.load(paths)
+            assert raw.n_times == 4000
 
     def test_n_channels(self):
         with tempfile.TemporaryDirectory() as tmp:
+            paths = []
             for run in [4, 6, 8, 10]:
-                _create_fake_fif(os.path.join(tmp, f'S001R{run:02d}.fif'))
+                fp = os.path.join(tmp, f'S001R{run:02d}.fif')
+                _create_fake_fif(fp)
+                paths.append(fp)
             from bci.source import FileSource
-            eeg = FileSource.load(
-                Path(tmp) / 'S001R04.fif', session=True)
-            assert eeg.n_channels == 4
+            raw = FileSource.load(paths)
+            assert raw.info['nchan'] == 4
 
     def test_stream_after_concat(self):
         with tempfile.TemporaryDirectory() as tmp:
+            paths = []
             for run in [4, 6, 8, 10]:
-                _create_fake_fif(os.path.join(tmp, f'S001R{run:02d}.fif'),
-                                 n_samples=1000)
+                fp = os.path.join(tmp, f'S001R{run:02d}.fif')
+                _create_fake_fif(fp, n_samples=1000)
+                paths.append(fp)
             from bci.source import FileSource, StreamSource
-            eeg = FileSource.load(
-                Path(tmp) / 'S001R04.fif', session=True)
-            stream = StreamSource(eeg)
+            raw = FileSource.load(paths)
+            stream = StreamSource(raw)
             chunk = stream.read_chunk(500)
             assert chunk.shape == (4, 500)
 
     def test_read_all_chunks_exhausts(self):
         with tempfile.TemporaryDirectory() as tmp:
+            paths = []
             for run in [4, 6, 8, 10]:
-                _create_fake_fif(os.path.join(tmp, f'S001R{run:02d}.fif'),
-                                 n_samples=1000)
+                fp = os.path.join(tmp, f'S001R{run:02d}.fif')
+                _create_fake_fif(fp, n_samples=1000)
+                paths.append(fp)
             from bci.source import FileSource, StreamSource
-            eeg = FileSource.load(
-                Path(tmp) / 'S001R04.fif', session=True)
-            stream = StreamSource(eeg)
+            raw = FileSource.load(paths)
+            stream = StreamSource(raw)
             total = 0
             while True:
                 chunk = stream.read_chunk(500)
@@ -120,13 +125,14 @@ class TestSessionConcatenation:
 
     def test_loop_wraps_at_eof(self):
         with tempfile.TemporaryDirectory() as tmp:
+            paths = []
             for run in [4, 6, 8, 10]:
-                _create_fake_fif(os.path.join(tmp, f'S001R{run:02d}.fif'),
-                                 n_samples=1000)
+                fp = os.path.join(tmp, f'S001R{run:02d}.fif')
+                _create_fake_fif(fp, n_samples=1000)
+                paths.append(fp)
             from bci.source import FileSource, StreamSource
-            eeg = FileSource.load(
-                Path(tmp) / 'S001R04.fif', session=True)
-            stream = StreamSource(eeg)
+            raw = FileSource.load(paths)
+            stream = StreamSource(raw)
             stream.set_loop(True)
             while stream.position < stream.total_samples:
                 stream.read_chunk(500)
@@ -136,34 +142,39 @@ class TestSessionConcatenation:
 
     def test_progress_0_at_start(self):
         with tempfile.TemporaryDirectory() as tmp:
+            paths = []
             for run in [4, 6, 8, 10]:
-                _create_fake_fif(os.path.join(tmp, f'S001R{run:02d}.fif'))
+                fp = os.path.join(tmp, f'S001R{run:02d}.fif')
+                _create_fake_fif(fp)
+                paths.append(fp)
             from bci.source import FileSource, StreamSource
-            eeg = FileSource.load(
-                Path(tmp) / 'S001R04.fif', session=True)
-            stream = StreamSource(eeg)
+            raw = FileSource.load(paths)
+            stream = StreamSource(raw)
             assert stream.progress == 0
 
     def test_progress_50_at_middle(self):
         with tempfile.TemporaryDirectory() as tmp:
+            paths = []
             for run in [4, 6, 8, 10]:
-                _create_fake_fif(os.path.join(tmp, f'S001R{run:02d}.fif'),
-                                 n_samples=1000)
+                fp = os.path.join(tmp, f'S001R{run:02d}.fif')
+                _create_fake_fif(fp, n_samples=1000)
+                paths.append(fp)
             from bci.source import FileSource, StreamSource
-            eeg = FileSource.load(
-                Path(tmp) / 'S001R04.fif', session=True)
-            stream = StreamSource(eeg)
+            raw = FileSource.load(paths)
+            stream = StreamSource(raw)
             stream.seek(2000)
             assert stream.progress == 50
 
     def test_reset_to_start(self):
         with tempfile.TemporaryDirectory() as tmp:
+            paths = []
             for run in [4, 6, 8, 10]:
-                _create_fake_fif(os.path.join(tmp, f'S001R{run:02d}.fif'))
+                fp = os.path.join(tmp, f'S001R{run:02d}.fif')
+                _create_fake_fif(fp)
+                paths.append(fp)
             from bci.source import FileSource, StreamSource
-            eeg = FileSource.load(
-                Path(tmp) / 'S001R04.fif', session=True)
-            stream = StreamSource(eeg)
+            raw = FileSource.load(paths)
+            stream = StreamSource(raw)
             stream.read_chunk(500)
             stream.reset()
             assert stream.position == 0
@@ -174,12 +185,13 @@ class TestSessionConcatenation:
         if not os.path.exists('/data/bci/S001R04.edf'):
             pytest.skip("Real BCI data not available")
         from bci.source import FileSource, StreamSource
-        eeg = FileSource.load(
-            '/data/bci/S001R04.edf', session=True)
-        assert eeg.n_channels == 64
-        assert eeg.sfreq == 160.0
-        assert eeg.total_samples == 20000 * 4
-        stream = StreamSource(eeg)
+        from bci.source.file_source import find_session_runs
+        runs = find_session_runs(Path('/data/bci/S001R04.edf'))
+        raw = FileSource.load([str(r) for r in runs])
+        assert raw.info['nchan'] == 64
+        assert raw.info['sfreq'] == 160.0
+        assert raw.n_times == 20000 * len(runs)
+        stream = StreamSource(raw)
         chunk = stream.read_chunk(1600)
         assert chunk.shape == (64, 1600)
 

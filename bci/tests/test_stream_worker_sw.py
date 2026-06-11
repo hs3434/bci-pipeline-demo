@@ -2,16 +2,16 @@
 import numpy as np
 import pytest
 
-from bci.source.base import EEGData
-
 
 def _mock_eeg(n_channels=4, sfreq=160.0, n_samples=1600):
-    """Create a minimal EEGData for StreamWorker construction."""
-    return EEGData(
-        data=np.zeros((n_channels, n_samples), dtype=np.float32),
-        sfreq=sfreq,
-        ch_names=[f'Ch{i}' for i in range(n_channels)],
+    """Create a minimal MNE Raw for StreamWorker construction."""
+    import mne
+    data = np.zeros((n_channels, n_samples), dtype=np.float32)
+    info = mne.create_info(
+        [f'Ch{i}' for i in range(n_channels)],
+        sfreq, ch_types='eeg',
     )
+    return mne.io.RawArray(data, info, verbose=False)
 
 
 class TestStreamWorkerSlidingWindow:

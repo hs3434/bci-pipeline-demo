@@ -1,8 +1,4 @@
-"""
-Tests for bci.source module
-============================
-Updated for EEGData / EEGReader / FileSource / StreamSource design.
-"""
+"""Tests for bci.source module."""
 from __future__ import annotations
 import pytest
 import numpy as np
@@ -25,27 +21,6 @@ def _create_fake_fif(filepath: str, n_channels: int = 4,
     raw.save(filepath, overwrite=True)
 
 
-class TestEEGData:
-    """EEGData container unit tests."""
-
-    def test_basic_properties(self):
-        from bci.source.base import EEGData
-        data = np.zeros((4, 500), dtype=float)
-        eeg = EEGData(data=data, sfreq=256.0,
-                      ch_names=['Ch1', 'Ch2', 'Ch3', 'Ch4'])
-        assert eeg.n_channels == 4
-        assert eeg.n_samples == 500
-        assert eeg.total_samples == 500
-        assert eeg.duration == pytest.approx(500 / 256.0)
-
-    def test_source_path_optional(self):
-        from bci.source.base import EEGData
-        eeg = EEGData(data=np.zeros((1, 10)), sfreq=100.0, ch_names=['A'])
-        assert eeg.source_path is None
-        eeg.source_path = '/tmp/test.edf'
-        assert eeg.source_path == '/tmp/test.edf'
-
-
 class TestEEGReaderABC:
     """EEGReader abstract base class tests."""
 
@@ -60,7 +35,6 @@ class TestEEGReaderABC:
         class PartialReader(EEGReader):
             @classmethod
             def suffixes(cls): return ('.x',)
-            # missing read()
 
         with pytest.raises(TypeError):
             PartialReader()  # type: ignore[abstract]
@@ -71,8 +45,9 @@ class TestReaderRegistry:
 
     def test_register_and_resolve(self):
         from bci.source.base import (
-            EEGData, EEGReader, register_reader, get_reader, _reader_registry,
+            EEGReader, register_reader, get_reader, _reader_registry,
         )
+        import mne
         key = '.testreg'
 
         @register_reader(key)
@@ -80,10 +55,9 @@ class TestReaderRegistry:
             @classmethod
             def suffixes(cls): return ('.testreg',)
             def read(self, filepath):
-                return EEGData(
-                    data=np.zeros((2, 10)), sfreq=100.0,
-                    ch_names=['A', 'B'],
-                )
+                data = np.zeros((2, 10))
+                info = mne.create_info(['A', 'B'], 100.0, ch_types='eeg')
+                return mne.io.RawArray(data, info, verbose=False)
 
         assert key in _reader_registry
         reader = get_reader(Path('data.testreg'))
@@ -100,23 +74,19 @@ class TestFileSource:
             _create_fake_fif(filepath, n_channels=4, n_samples=5000)
             yield filepath
 
-    def test_load_returns_eegdata(self, fake_fif):
+    def test_load_returns_raw(self, fake_fif):
         from bci.source import FileSource
-        eeg = FileSource.load(fake_fif)
-        assert eeg.n_channels == 4
-        assert eeg.n_samples == 5000
-        assert eeg.sfreq == 256.0
+        import mne
+        raw = FileSource.load(fake_fif)
+        assert isinstance(raw, mne.io.BaseRaw)
+        assert raw.info['nchan'] == 4
+        assert raw.n_times == 5000
+        assert raw.info['sfreq'] == 256.0
 
     def test_load_sets_source_path(self, fake_fif):
         from bci.source import FileSource
-        eeg = FileSource.load(fake_fif)
-        assert eeg.source_path == fake_fif
-
-    def test_load_raw_returns_mne_raw(self, fake_fif):
-        from bci.source import FileSource
-        raw = FileSource.load_raw(fake_fif)
-        assert len(raw.ch_names) == 4
-        assert raw.info['sfreq'] == 256.0
+        raw = FileSource.load(fake_fif)
+        assert raw._source_path == fake_fif
 
     def test_load_list_of_paths(self, fake_fif):
         from bci.source import FileSource
@@ -124,34 +94,38 @@ class TestFileSource:
         with tempfile.TemporaryDirectory() as tmp2:
             fp2 = os.path.join(tmp2, 'test2.fif')
             _create_fake_fif(fp2, n_channels=4, n_samples=3000)
-            eeg = FileSource.load([fake_fif, fp2])
-            assert eeg.n_samples == 8000  # 5000 + 3000
-            assert eeg.n_channels == 4
+            raw = FileSource.load([fake_fif, fp2])
+            assert raw.n_times == 8000
+            assert raw.info['nchan'] == 4
+
+
+def _make_raw(n_channels=2, sfreq=256.0, n_samples=2560, source_path=None):
+    import mne
+    data = np.arange(n_channels * n_samples, dtype=float).reshape(n_channels, n_samples)
+    info = mne.create_info(
+        [f'EEG {i:03d}' for i in range(n_channels)],
+        sfreq, ch_types='eeg',
+    )
+    raw = mne.io.RawArray(data, info, verbose=False)
+    if source_path:
+        raw._source_path = source_path
+    return raw
 
 
 class TestStreamSource:
-    """StreamSource tests using synthetic EEGData."""
+    """StreamSource tests using synthetic MNE Raw."""
 
     @pytest.fixture
-    def eeg_data(self):
-        from bci.source.base import EEGData
-        return EEGData(
-            data=np.arange(2 * 2560, dtype=float).reshape(2, 2560),
-            sfreq=256.0,
-            ch_names=['EEG 001', 'EEG 002'],
-            source_path='/tmp/test.fif',
-        )
-
-    @pytest.fixture
-    def stream(self, eeg_data):
+    def stream(self):
         from bci.source import StreamSource
-        return StreamSource(eeg_data, chunk_duration=0.1)
+        raw = _make_raw(source_path='/tmp/test.fif')
+        return StreamSource(raw, chunk_duration=0.1)
 
     def test_properties(self, stream):
         assert stream.sfreq == 256.0
         assert stream.n_channels == 2
         assert stream.total_samples == 2560
-        assert stream.ch_names == ['EEG 001', 'EEG 002']
+        assert stream.ch_names == ['EEG 000', 'EEG 001']
         assert stream.source_path == '/tmp/test.fif'
 
     def test_read_chunk_default(self, stream):
@@ -242,7 +216,6 @@ class TestFindSessionRuns:
         from bci.source.file_source import find_session_runs
         for name in ['S001R04.edf', 'S001R06.edf', 'S001R08.edf', 'S001R10.edf']:
             (tmp_path / name).touch()
-        # also create an unrelated file
         (tmp_path / 'S002R01.edf').touch()
         runs = find_session_runs(tmp_path / 'S001R04.edf')
         assert len(runs) == 4

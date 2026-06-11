@@ -107,7 +107,7 @@ class TestLoadWorker:
 
     def test_run_emits_finished_with_source(self, qapp, fake_edf):
         from bci.gui.worker import LoadWorker
-        from bci.source import EEGData
+        import mne
 
         worker = LoadWorker([fake_edf])
         results = []
@@ -122,11 +122,11 @@ class TestLoadWorker:
 
         assert len(errors) == 0, f"Load error: {errors}"
         assert len(results) == 1, "Should emit finished with source"
-        assert isinstance(results[0], EEGData)
+        assert isinstance(results[0], mne.io.BaseRaw)
         assert len(progresses) > 0, "Should emit load progress"
         source = results[0]
-        assert source.n_channels > 0
-        assert source.total_samples > 0
+        assert source.info['nchan'] > 0
+        assert source.n_times > 0
 
     def test_run_with_invalid_file_emits_error(self, qapp):
         from bci.gui.worker import LoadWorker
