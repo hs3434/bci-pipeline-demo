@@ -23,19 +23,23 @@ class StreamSource:
         ...     process(chunk)
     """
 
-    def __init__(self, raw, chunk_duration: float = 0.1,
-                 source_path: str | None = None):
-        self._raw = raw
+    def __init__(self, raw: 'mne.io.Raw', chunk_duration: float = 0.1,
+                 filepath: str | None = None):
+        self._raw: 'mne.io.Raw' = raw
         self._data = raw.get_data()
         self.sfreq = raw.info['sfreq']
         self.n_channels = raw.info['nchan']
         self.chunk_duration = chunk_duration
-        self.source_path = source_path
+        self._filepath: Optional[str] = filepath
 
         self._position = 0
         self._speed = 1.0
         self._loop = False
         self._closed = False
+
+    @property
+    def filepath(self) -> Optional[str]:
+        return self._filepath
 
     @property
     def ch_names(self) -> list[str]:

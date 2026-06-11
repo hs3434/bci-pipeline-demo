@@ -18,7 +18,7 @@ class EEGReader(ABC):
     """
 
     @abstractmethod
-    def read(self, filepath: Path):
+    def read(self, filepath: Path) -> 'mne.io.Raw':
         """Load file and return an MNE Raw object."""
         ...
 

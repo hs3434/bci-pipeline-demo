@@ -111,14 +111,14 @@ class TestStreamSource:
     def stream(self):
         from bci.source import StreamSource
         raw = _make_raw()
-        return StreamSource(raw, chunk_duration=0.1, source_path='/tmp/test.fif')
+        return StreamSource(raw, chunk_duration=0.1, filepath='/tmp/test.fif')
 
     def test_properties(self, stream):
         assert stream.sfreq == 256.0
         assert stream.n_channels == 2
         assert stream.total_samples == 2560
         assert stream.ch_names == ['EEG 000', 'EEG 001']
-        assert stream.source_path == '/tmp/test.fif'
+        assert stream.filepath == '/tmp/test.fif'
 
     def test_read_chunk_default(self, stream):
         chunk = stream.read_chunk()

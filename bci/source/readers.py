@@ -13,7 +13,7 @@ class _MNEReader(EEGReader):
 
     _mne_reader: str = ''
 
-    def read(self, filepath: Path):
+    def read(self, filepath: Path) -> 'mne.io.Raw':
         reader = getattr(mne.io, self._mne_reader)
         raw = reader(str(filepath), preload=True, verbose=False)
         return raw
