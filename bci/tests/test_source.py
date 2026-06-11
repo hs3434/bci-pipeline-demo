@@ -206,14 +206,14 @@ class TestFindSessionRuns:
     """find_session_runs tests."""
 
     def test_single_file_no_pattern(self, tmp_path):
-        from bci.source.file_source import find_session_runs
+        from bci.gui.session_loader import find_session_runs
         p = tmp_path / 'random.edf'
         p.touch()
         runs = find_session_runs(p)
         assert runs == [p]
 
     def test_pattern_matches_runs(self, tmp_path):
-        from bci.source.file_source import find_session_runs
+        from bci.gui.session_loader import find_session_runs
         for name in ['S001R04.edf', 'S001R06.edf', 'S001R08.edf', 'S001R10.edf']:
             (tmp_path / name).touch()
         (tmp_path / 'S002R01.edf').touch()

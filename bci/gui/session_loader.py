@@ -14,6 +14,8 @@ from PyQt6.QtWidgets import (
     QListWidget, QListWidgetItem, QFileDialog, QWidget, QDialogButtonBox,
 )
 from PyQt6.QtCore import Qt
+import re
+import glob as glob_lib
 
 
 class SessionDialog(QDialog):
@@ -138,7 +140,6 @@ def open_session_files(parent: QWidget) -> List[Path]:
         return []
 
     if len(selected) == 1:
-        from bci.source.file_source import find_session_runs
         runs = find_session_runs(selected[0])
         if len(runs) > 1:
             confirm = SessionDialog(runs, parent)
@@ -148,3 +149,24 @@ def open_session_files(parent: QWidget) -> List[Path]:
         return runs
 
     return selected
+
+
+def find_session_runs(filepath: Path) -> List[Path]:
+    """Discover all runs belonging to the same subject session.
+
+    Given ``S001R04.edf``, glob for ``S001R*.edf`` in the same
+    directory and sort by ascending run number.
+    """
+    stem = filepath.stem
+    match = re.match(r'^(.*R)0?(\d+)$', stem)
+    if match is None:
+        return [filepath]
+
+    base = match.group(1)
+    ext = filepath.suffix
+    pattern = f"{filepath.parent}/{base}*{ext}"
+    runs = sorted(
+        glob_lib.glob(pattern),
+        key=lambda p: int(re.search(r'R(\d+)', p).group(1)),
+    )
+    return [Path(p) for p in runs]

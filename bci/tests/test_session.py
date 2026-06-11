@@ -44,7 +44,7 @@ class TestFindSessionRuns:
             for run in [4, 6, 8, 10]:
                 fif = os.path.join(tmp, f'S001R{run:02d}.fif')
                 _create_fake_fif(fif)
-            from bci.source.file_source import find_session_runs
+            from bci.gui.session_loader import find_session_runs
             runs = find_session_runs(Path(tmp) / 'S001R04.fif')
             assert len(runs) == 4
 
@@ -52,7 +52,7 @@ class TestFindSessionRuns:
         with tempfile.TemporaryDirectory() as tmp:
             fif = os.path.join(tmp, 'solo.fif')
             _create_fake_fif(fif)
-            from bci.source.file_source import find_session_runs
+            from bci.gui.session_loader import find_session_runs
             runs = find_session_runs(Path(tmp) / 'solo.fif')
             assert len(runs) == 1
 
@@ -61,7 +61,7 @@ class TestFindSessionRuns:
             for run in [4, 6, 8, 10]:
                 fif = os.path.join(tmp, f'S001R{run:02d}.fif')
                 _create_fake_fif(fif)
-            from bci.source.file_source import find_session_runs
+            from bci.gui.session_loader import find_session_runs
             runs = find_session_runs(Path(tmp) / 'S001R04.fif')
             run_nums = [int(re.search(r'R(\d+)', str(r)).group(1)) for r in runs]
             assert run_nums == [4, 6, 8, 10]
@@ -185,7 +185,7 @@ class TestSessionConcatenation:
         if not os.path.exists('/data/bci/S001R04.edf'):
             pytest.skip("Real BCI data not available")
         from bci.source import FileSource, StreamSource
-        from bci.source.file_source import find_session_runs
+        from bci.gui.session_loader import find_session_runs
         runs = find_session_runs(Path('/data/bci/S001R04.edf'))
         raw = FileSource.load([str(r) for r in runs])
         assert raw.info['nchan'] == 64
