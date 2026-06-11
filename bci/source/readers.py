@@ -16,7 +16,6 @@ class _MNEReader(EEGReader):
     def read(self, filepath: Path):
         reader = getattr(mne.io, self._mne_reader)
         raw = reader(str(filepath), preload=True, verbose=False)
-        raw._source_path = str(filepath)
         return raw
 
 

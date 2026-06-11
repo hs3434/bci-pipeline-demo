@@ -40,5 +40,4 @@ class FileSource:
             return raws[0]
 
         result = mne.concatenate_raws(raws)
-        result._source_path = str(paths[0])
         return result

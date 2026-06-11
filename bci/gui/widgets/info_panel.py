@@ -166,7 +166,7 @@ class EEGInfoPanel(QFrame):
 def _display_name(source) -> str:
     import re
     from pathlib import Path
-    path = getattr(source, 'source_path', None) or getattr(source, '_source_path', None) or getattr(source, 'filepath', None)
+    path = getattr(source, 'source_path', None) or getattr(source, 'filepath', None)
     if path:
         stem = Path(str(path)).stem
         m = re.match(r'^(.*)R\d+$', stem)

@@ -23,12 +23,14 @@ class StreamSource:
         ...     process(chunk)
     """
 
-    def __init__(self, raw, chunk_duration: float = 0.1):
+    def __init__(self, raw, chunk_duration: float = 0.1,
+                 source_path: str | None = None):
         self._raw = raw
         self._data = raw.get_data()
         self.sfreq = raw.info['sfreq']
         self.n_channels = raw.info['nchan']
         self.chunk_duration = chunk_duration
+        self.source_path = source_path
 
         self._position = 0
         self._speed = 1.0
@@ -38,10 +40,6 @@ class StreamSource:
     @property
     def ch_names(self) -> list[str]:
         return self._raw.ch_names
-
-    @property
-    def source_path(self) -> str | None:
-        return getattr(self._raw, '_source_path', None)
 
     @property
     def chunk_samples(self) -> int:

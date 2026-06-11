@@ -83,11 +83,6 @@ class TestFileSource:
         assert raw.n_times == 5000
         assert raw.info['sfreq'] == 256.0
 
-    def test_load_sets_source_path(self, fake_fif):
-        from bci.source import FileSource
-        raw = FileSource.load(fake_fif)
-        assert raw._source_path == fake_fif
-
     def test_load_list_of_paths(self, fake_fif):
         from bci.source import FileSource
         import tempfile as tmp_mod
@@ -99,17 +94,14 @@ class TestFileSource:
             assert raw.info['nchan'] == 4
 
 
-def _make_raw(n_channels=2, sfreq=256.0, n_samples=2560, source_path=None):
+def _make_raw(n_channels=2, sfreq=256.0, n_samples=2560):
     import mne
     data = np.arange(n_channels * n_samples, dtype=float).reshape(n_channels, n_samples)
     info = mne.create_info(
         [f'EEG {i:03d}' for i in range(n_channels)],
         sfreq, ch_types='eeg',
     )
-    raw = mne.io.RawArray(data, info, verbose=False)
-    if source_path:
-        raw._source_path = source_path
-    return raw
+    return mne.io.RawArray(data, info, verbose=False)
 
 
 class TestStreamSource:
@@ -118,8 +110,8 @@ class TestStreamSource:
     @pytest.fixture
     def stream(self):
         from bci.source import StreamSource
-        raw = _make_raw(source_path='/tmp/test.fif')
-        return StreamSource(raw, chunk_duration=0.1)
+        raw = _make_raw()
+        return StreamSource(raw, chunk_duration=0.1, source_path='/tmp/test.fif')
 
     def test_properties(self, stream):
         assert stream.sfreq == 256.0

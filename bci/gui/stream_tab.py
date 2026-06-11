@@ -244,7 +244,7 @@ class StreamTab(QWidget):
 
     def _on_load_finished(self, eeg):
         from bci.source import StreamSource
-        self._stream_source = StreamSource(eeg)
+        self._stream_source = StreamSource(eeg, source_path=self._filepaths[0] if self._filepaths else None)
         self._load_worker = None
         self._load_thread = None
         self.load_progress_bar.setVisible(False)
