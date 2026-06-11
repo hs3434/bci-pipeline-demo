@@ -15,7 +15,7 @@ from bci.decoder.base import Decoder
 class _EEGCNN(nn.Module):
     """Lightweight 2D CNN: Conv -> BN -> ReLU -> Conv -> BN -> ReLU -> FC."""
 
-    def __init__(self, n_channels: int, n_times: int, n_classes: int,
+    def __init__(self, n_channels: int, n_samples: int, n_classes: int,
                  dropout: float = 0.25):
         super().__init__()
         self.conv1 = nn.Conv2d(1, 16, kernel_size=(n_channels, 3), padding=0)
@@ -25,7 +25,7 @@ class _EEGCNN(nn.Module):
         self.dropout = nn.Dropout(dropout)
 
         with torch.no_grad():
-            dummy = torch.zeros(1, 1, n_channels, n_times)
+            dummy = torch.zeros(1, 1, n_channels, n_samples)
             x = self.bn2(self.conv2(self.bn1(self.conv1(dummy))))
             self._flatten_size = x.view(1, -1).shape[1]
 
