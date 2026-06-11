@@ -1,74 +1,48 @@
-"""
-FileSource — File Loading Facade
-=================================
-Format-agnostic EEG file loading with optional session concatenation.
-"""
+"""FileSource — static facade for loading EEG files."""
 from __future__ import annotations
-from pathlib import Path
-from typing import List, Optional
-import logging
+
 import re
-import glob as glob_lib
+from pathlib import Path
+from typing import List
 
-import numpy as np
+import mne
 
-from bci.source.base import EEGData, get_reader
-
-logger = logging.getLogger(__name__)
+from bci.source.base import get_reader
 
 
 class FileSource:
-    """File-loading facade for EEG data.
+    """Static facade for loading EEG files.
 
-    Delegates to registered EEGReader implementations based on file
-    suffix. Supports single-file loading and session-level multi-run
-    concatenation.
-
-    Examples:
-        # Single file
-        >>> eeg = FileSource.load('data.edf')
-        >>> print(eeg.n_channels, eeg.n_samples)
-
-        # Multi-run session
-        >>> eeg = FileSource.load('S001R04.edf', session=True)
+    Provides ``load()`` which returns an MNE Raw object.
     """
 
     @staticmethod
-    def load(filepath: Path | str | List[str],
-             session: bool = False) -> EEGData:
+    def load(filepath: Path | str | List[str]):
+        """Load EEG file(s) and return an MNE Raw object.
+
+        Parameters
+        ----------
+        filepath : Path | str | list[Path | str]
+            A single file path or a list of paths.
+            When a list is given the files are concatenated
+            along the time axis.
+        """
         if isinstance(filepath, list):
             paths = [Path(p) for p in filepath]
         else:
-            filepath = Path(filepath)
-            paths = find_session_runs(filepath) if session else [filepath]
+            paths = [Path(filepath)]
 
-        if not paths:
-            raise FileNotFoundError(f"No files found for: {filepath}")
-
-        eegs: List[EEGData] = []
+        raws = []
         for p in paths:
-            logger.info(f"Loading: {p}")
             reader = get_reader(p)
-            eegs.append(reader.read(p))
+            raws.append(reader.read(p))
 
-        if len(eegs) == 1:
-            eegs[0].source_path = str(paths[0])
-            return eegs[0]
+        if len(raws) == 1:
+            return raws[0]
 
-        result = _concat_eegs(eegs)
-        result.source_path = str(paths[0])
+        result = mne.concatenate_raws(raws)
+        result._source_path = str(paths[0])
         return result
-
-    @staticmethod
-    def load_raw(filepath: Path | str):
-        """Load file and return an MNE Raw object.
-
-        Useful when downstream code needs MNE-specific features
-        (montage metadata, plot_topomap, etc.).
-        """
-        filepath = Path(filepath)
-        reader = get_reader(filepath)
-        return reader.read_raw(filepath)
 
 
 def find_session_runs(filepath: Path) -> List[Path]:
@@ -77,6 +51,8 @@ def find_session_runs(filepath: Path) -> List[Path]:
     Given ``S001R04.edf``, glob for ``S001R*.edf`` in the same
     directory and sort by ascending run number.
     """
+    import glob as glob_lib
+
     stem = filepath.stem
     match = re.match(r'^(.*R)0?(\d+)$', stem)
     if match is None:
@@ -90,11 +66,3 @@ def find_session_runs(filepath: Path) -> List[Path]:
         key=lambda p: int(re.search(r'R(\d+)', p).group(1)),
     )
     return [Path(p) for p in runs]
-
-
-def _concat_eegs(eegs: List[EEGData]) -> EEGData:
-    """Concatenate multiple EEGData objects along the time axis."""
-    data = np.concatenate([e.data for e in eegs], axis=1)
-    sfreq = eegs[0].sfreq
-    ch_names = eegs[0].ch_names
-    return EEGData(data=data, sfreq=sfreq, ch_names=ch_names)

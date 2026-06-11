@@ -1,19 +1,19 @@
+"""bci.source — EEG data loading abstractions.
+
+Provides reader abstractions (EEGReader, register_reader)
+and concrete sources (FileSource, StreamSource).
 """
-Data Source Module
-==================
-EEG data loading (FileSource), streaming (StreamSource), and reader
-abstractions (EEGData, EEGReader, register_reader).
-"""
-from .base import EEGData, EEGReader, register_reader, get_reader
+from .base import EEGReader, register_reader, get_reader
 from .file_source import FileSource
 from .stream_source import StreamSource
-from . import readers  # trigger built-in reader registrations
+
+# Trigger reader registration
+from . import readers  # noqa: F401
 
 __all__ = [
-    'EEGData',
     'EEGReader',
-    'register_reader',
-    'get_reader',
     'FileSource',
     'StreamSource',
+    'register_reader',
+    'get_reader',
 ]

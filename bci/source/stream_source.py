@@ -1,35 +1,33 @@
-"""
-StreamSource — Simulated Real-Time Data Feed
-============================================
-Wraps an EEGData container and feeds it chunk-by-chunk, simulating
-a live EEG acquisition device.
+"""StreamSource — chunk-by-chunk streaming over an MNE Raw object.
+
+Wraps an MNE Raw object and feeds it chunk-by-chunk, simulating
+real-time EEG acquisition for online/streaming display.
 """
 from __future__ import annotations
+
 from typing import Optional
 
 import numpy as np
 
-from bci.source.base import EEGData
-
 
 class StreamSource:
-    """Streaming wrapper over a pre-loaded EEGData container.
+    """Streaming wrapper over a pre-loaded MNE Raw object.
 
-    Does NOT read files — receives a ready-to-use EEGData from
+    Does NOT read files — receives a ready-to-use Raw from
     FileSource.load() or any other producer.
 
     Example:
-        >>> eeg = FileSource.load('data.edf')
-        >>> stream = StreamSource(eeg, chunk_duration=0.1)
+        >>> raw = FileSource.load('data.edf')
+        >>> stream = StreamSource(raw, chunk_duration=0.1)
         >>> while (chunk := stream.read_chunk()) is not None:
         ...     process(chunk)
     """
 
-    def __init__(self, data: EEGData, chunk_duration: float = 0.1):
-        self._eeg = data
-        self._data = data.data
-        self.sfreq = data.sfreq
-        self.n_channels = data.n_channels
+    def __init__(self, raw, chunk_duration: float = 0.1):
+        self._raw = raw
+        self._data = raw.get_data()
+        self.sfreq = raw.info['sfreq']
+        self.n_channels = raw.info['nchan']
         self.chunk_duration = chunk_duration
 
         self._position = 0
@@ -39,11 +37,11 @@ class StreamSource:
 
     @property
     def ch_names(self) -> list[str]:
-        return self._eeg.ch_names
+        return self._raw.ch_names
 
     @property
     def source_path(self) -> str | None:
-        return self._eeg.source_path
+        return getattr(self._raw, '_source_path', None)
 
     @property
     def chunk_samples(self) -> int:

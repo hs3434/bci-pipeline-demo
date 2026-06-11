@@ -1,40 +1,31 @@
-"""
-Built-in EEG File Format Readers
-=================================
-EDF, FIF, EEGLAB (.set), and BrainVision (.vhdr) support via MNE.
-"""
+"""MNE-backed EEG readers with format registry."""
 from __future__ import annotations
+
 from pathlib import Path
 
-from bci.source.base import EEGData, EEGReader, register_reader
+import mne
+
+from bci.source.base import EEGReader, register_reader
 
 
 class _MNEReader(EEGReader):
-    """Shared MNE-backed reader — subclasses set :attr:`_mne_reader`."""
+    """Base for MNE-supported formats."""
 
     _mne_reader: str = ''
 
-    def read(self, filepath: Path) -> EEGData:
-        import mne
-        raw = getattr(mne.io, self._mne_reader)(
-            filepath, preload=True, verbose=False)
-        data = raw.get_data()
-        ch_names = [str(c) for c in raw.ch_names]
-        sfreq = float(raw.info['sfreq'])
-        return EEGData(data=data, sfreq=sfreq, ch_names=ch_names)
-
-    def read_raw(self, filepath: Path):
-        import mne
-        return getattr(mne.io, self._mne_reader)(
-            filepath, preload=True, verbose=False)
+    def read(self, filepath: Path):
+        reader = getattr(mne.io, self._mne_reader)
+        raw = reader(str(filepath), preload=True, verbose=False)
+        raw._source_path = str(filepath)
+        return raw
 
 
-@register_reader('.edf')
+@register_reader('.edf', '.bdf')
 class EDFReader(_MNEReader):
     _mne_reader = 'read_raw_edf'
 
 
-@register_reader('.fif')
+@register_reader('.fif', '.fif.gz')
 class FIFFReader(_MNEReader):
     _mne_reader = 'read_raw_fif'
 
