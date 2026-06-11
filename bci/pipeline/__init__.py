@@ -94,7 +94,7 @@ class BCIPipeline:
     # Step methods — each returns self for fluent chaining
     # ------------------------------------------------------------------
 
-    def load_raw(self, raw) -> 'BCIPipeline':
+    def load_raw(self, raw: 'mne.io.Raw') -> 'BCIPipeline':
         """Load from an already-loaded MNE Raw object."""
         self._raw_original = raw
         self.raw = raw
