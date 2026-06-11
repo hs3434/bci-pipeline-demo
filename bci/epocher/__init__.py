@@ -52,14 +52,15 @@ class Epocher:
         self.epochs: Optional['mne.Epochs'] = None
 
     def find_events(self, stim_channel: Optional[str] = None,
-                    min_duration: float = 0.001) -> np.ndarray:
-        """Find events in the data
-
-        Tries stim channel first, then falls back to annotations.
+                    min_duration: float = 0.001,
+                    prefer_annotations: bool = False) -> np.ndarray:
+        """Find events in the data.
 
         Args:
-            stim_channel: Stimulus channel name. If None, uses default.
-            min_duration: Minimum event duration (s)
+            stim_channel: Stimulus channel name. If None, uses MNE default.
+            min_duration: Minimum event duration (s).
+            prefer_annotations: If True, use annotations first instead of
+                trying stim channel.
 
         Returns:
             Events array (n_events, 3)
@@ -68,16 +69,20 @@ class Epocher:
             raise RuntimeError("No raw data loaded, call load() first")
         import mne
 
-        try:
-            self.events = mne.find_events(  # type: ignore
-                self.raw,
-                stim_channel=stim_channel,
-                min_duration=int(min_duration)
-            )
-        except ValueError:
-            logger.info("No stim channel, trying annotations...")
-            self.events, event_id = mne.events_from_annotations(self.raw)  # type: ignore
+        if prefer_annotations:
+            self.events, event_id = mne.events_from_annotations(self.raw)
             logger.info(f"Found event IDs from annotations: {event_id}")
+        else:
+            try:
+                self.events = mne.find_events(
+                    self.raw,
+                    stim_channel=stim_channel,
+                    min_duration=int(min_duration),
+                )
+            except ValueError:
+                logger.info("No stim channel, trying annotations...")
+                self.events, event_id = mne.events_from_annotations(self.raw)
+                logger.info(f"Found event IDs from annotations: {event_id}")
 
         if self.events is None or len(self.events) == 0:
             raise RuntimeError("No events found in data")

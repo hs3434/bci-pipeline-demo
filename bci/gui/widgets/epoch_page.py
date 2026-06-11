@@ -8,7 +8,8 @@ from typing import Optional
 
 import numpy as np
 from PyQt6.QtWidgets import (
-    QFrame, QHBoxLayout, QLabel, QGroupBox, QDoubleSpinBox,
+    QFrame, QVBoxLayout, QHBoxLayout, QLabel, QGroupBox, QDoubleSpinBox,
+    QComboBox, QLineEdit,
 )
 from PyQt6.QtCore import pyqtSignal
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
@@ -23,6 +24,8 @@ class EpochPage(QFrame):
         super().__init__(parent)
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 4, 0, 4)
+
+        left = QVBoxLayout()
 
         grp = QGroupBox("Epoch Parameters")
         glay = QHBoxLayout()
@@ -49,7 +52,25 @@ class EpochPage(QFrame):
         glay.addWidget(self._reject)
         glay.addStretch()
         grp.setLayout(glay)
-        layout.addWidget(grp)
+        left.addWidget(grp)
+
+        evt_grp = QGroupBox("Event Config")
+        elay = QHBoxLayout()
+        elay.addWidget(QLabel("Source:"))
+        self._event_source = QComboBox()
+        self._event_source.addItems(['auto', 'stim', 'annotations'])
+        self._event_source.currentTextChanged.connect(self.epoch_changed.emit)
+        elay.addWidget(self._event_source)
+        elay.addWidget(QLabel("ID map:"))
+        self._event_id = QLineEdit()
+        self._event_id.setPlaceholderText("auto")
+        self._event_id.textChanged.connect(self.epoch_changed.emit)
+        elay.addWidget(self._event_id)
+        elay.addStretch()
+        evt_grp.setLayout(elay)
+        left.addWidget(evt_grp)
+        left.addStretch()
+        layout.addLayout(left)
 
         self._chart = self._make_chart()
         self._canvas = self._chart
@@ -76,6 +97,23 @@ class EpochPage(QFrame):
     @property
     def reject_uv(self) -> float:
         return self._reject.value()
+
+    @property
+    def event_source(self) -> str:
+        return self._event_source.currentText()
+
+    @property
+    def event_id(self) -> Optional[dict[str, int]]:
+        text = self._event_id.text().strip()
+        if not text:
+            return None
+        mapping = {}
+        for pair in text.split(','):
+            pair = pair.strip()
+            if ':' in pair:
+                name, code = pair.split(':', 1)
+                mapping[name.strip()] = int(code.strip())
+        return mapping or None
 
     def refresh_chart(self, pipeline: Optional[object] = None):
         ax = self._fig.axes[0]

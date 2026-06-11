@@ -43,6 +43,8 @@ class EpochConfig:
     reject_threshold: Dict[str, float] = field(default_factory=lambda: {
         'eeg': 300e-6
     })
+    event_source: str = 'auto'
+    event_id: Optional[Dict[str, int]] = None
 
     def validate(self) -> bool:
         if self.tmin >= self.tmax:

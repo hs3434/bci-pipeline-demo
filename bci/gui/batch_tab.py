@@ -180,6 +180,8 @@ class BatchTab(QWidget):
         self._config.epoch.reject_threshold = {
             'eeg': self._epoch_page.reject_uv * 1e-6
         }
+        self._config.epoch.event_source = self._epoch_page.event_source
+        self._config.epoch.event_id = self._epoch_page.event_id
         self._config.decode.method = self._decode_page.method
         self._config.decode.cv_folds = self._decode_page.cv_folds
 

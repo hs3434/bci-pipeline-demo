@@ -120,7 +120,7 @@ class BCIPipeline:
             raise
 
     def create_epochs(self) -> 'BCIPipeline':
-        """Create epochs"""
+        """Create epochs — events+event_id from config, defaults to auto."""
         from bci.epocher import Epocher
 
         self.logger.info("Creating epochs")
@@ -129,14 +129,18 @@ class BCIPipeline:
                 raise RuntimeError("No raw data preprocessed, call preprocess() first")
             epocher = Epocher(self.raw, self.config.epoch)
 
-            events = epocher.find_events()
+            event_source = self.config.epoch.event_source
+            events = epocher.find_events(
+                stim_channel=None if event_source != 'stim' else 'auto',
+                prefer_annotations=(event_source == 'annotations'),
+            )
             self.events = events
 
             self.epochs = epocher.extract_epochs(
-                events,
+                events, self.config.epoch.event_id,
                 tmin=self.config.epoch.tmin,
                 tmax=self.config.epoch.tmax,
-                baseline=self.config.epoch.baseline
+                baseline=self.config.epoch.baseline,
             )
             self._steps.append('create_epochs')
             self.logger.info(f"Created {len(self.epochs)} epochs")
@@ -223,8 +227,10 @@ class BCIPipeline:
             return (cfg.l_freq, cfg.h_freq, tuple(cfg.notch_freqs))
         elif step == 'create_epochs':
             cfg = self.config.epoch
+            eid = tuple(sorted(cfg.event_id.items())) if cfg.event_id else ()
             return (cfg.tmin, cfg.tmax, cfg.baseline,
-                    tuple(sorted(cfg.reject_threshold.items())))
+                    tuple(sorted(cfg.reject_threshold.items())),
+                    cfg.event_source, eid)
         elif step == 'decode':
             cfg = self.config.decode
             return (cfg.method, cfg.cv_folds)
