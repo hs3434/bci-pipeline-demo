@@ -31,6 +31,7 @@ class DecodePage(QFrame):
         glay.addWidget(QLabel("Method:"))
         self._method = QComboBox()
         self._method.addItems(list_methods())
+        self._method.setCurrentText('lda')
         self._method.currentTextChanged.connect(self.decode_changed.emit)
         glay.addWidget(self._method)
         glay.addWidget(QLabel("CV Folds:"))
