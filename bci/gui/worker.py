@@ -29,9 +29,15 @@ class BaseWorker(QObject):
     - ``error    = pyqtSignal(str)``     — work failed, carries message
     - ``run()``                         — abstract entry point (same name as QThread.run)
     - ``start_in_thread()``              — moveToThread + start, returns QThread
+    - ``stop()``                         — halt periodic work; default no-op
+    - ``cleanup()``                      — stop + quit + wait; safe to call multiple times
     """
     finished = pyqtSignal(object)
     error = pyqtSignal(str)
+
+    def __init__(self):
+        super().__init__()
+        self._thread: Optional[QThread] = None
 
     @abstractmethod
     def run(self):
@@ -53,8 +59,24 @@ class BaseWorker(QObject):
         self.moveToThread(self._thread)
         self._thread.started.connect(slot or self.run)
         self.finished.connect(self._thread.quit)
+        self.finished.connect(self._thread.wait)
         self._thread.start()
         return self._thread
+
+    def stop(self) -> None:
+        """Default no-op. Subclasses override to halt periodic work
+        (e.g. StreamWorker stops its QTimer)."""
+        pass
+
+    def cleanup(self) -> None:
+        """Stop the worker, quit its thread, and wait for it to finish.
+        Safe to call multiple times. Safe to call even if never started.
+        """
+        self.stop()
+        if self._thread is not None and self._thread.isRunning():
+            self._thread.quit()
+            self._thread.wait()
+        self._thread = None
 
 
 class LoadWorker(BaseWorker):
