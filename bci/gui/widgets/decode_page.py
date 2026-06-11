@@ -14,6 +14,8 @@ from PyQt6.QtCore import pyqtSignal
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 
+from bci.decoder import list_methods
+
 
 class DecodePage(QFrame):
 
@@ -28,7 +30,7 @@ class DecodePage(QFrame):
         glay = QHBoxLayout()
         glay.addWidget(QLabel("Method:"))
         self._method = QComboBox()
-        self._method.addItems(['lda', 'ssvep', 'fbcca', 'cnn', 'transformer'])
+        self._method.addItems(list_methods())
         self._method.currentTextChanged.connect(self.decode_changed.emit)
         glay.addWidget(self._method)
         glay.addWidget(QLabel("CV Folds:"))
