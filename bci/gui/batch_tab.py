@@ -7,6 +7,7 @@ from __future__ import annotations
 from typing import Optional, List
 from pathlib import Path
 
+from PyQt6.QtCore import QThread
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
     QMessageBox, QStackedWidget,
@@ -25,13 +26,13 @@ class BatchTab(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._filepaths: List[str] = []
-        self._source: Optional[object] = None
+        self._source: Optional['mne.io.Raw'] = None
         self._config = create_default_config()
         self._worker: Optional[BatchWorker] = None
-        self._worker_thread = None
+        self._worker_thread: Optional[QThread] = None
         self._load_worker: Optional[LoadWorker] = None
-        self._load_thread = None
-        self._pipeline: object = None
+        self._load_thread: Optional[QThread] = None
+        self._pipeline: Optional['BCIPipeline'] = None
         self._setup_ui()
 
     def _setup_ui(self):
@@ -97,10 +98,9 @@ class BatchTab(QWidget):
             self.step_strip.set_status(3, StepStatus.STALE)
 
     def _stop_workers(self):
-        for thread in (self._worker_thread, self._load_thread):
-            if thread is not None and thread.isRunning():
-                thread.quit()
-                thread.wait()
+        for w in (self._worker, self._load_worker):
+            if w is not None:
+                w.cleanup()
         self._worker = None
         self._worker_thread = None
         self._load_worker = None
@@ -142,7 +142,7 @@ class BatchTab(QWidget):
         self._load_worker.error.connect(self._on_load_error)
         self._load_thread = self._load_worker.start_in_thread()
 
-    def _on_load_finished(self, source):
+    def _on_load_finished(self, source: 'mne.io.Raw'):
         self._source = source
         self._load_worker = None
         self._load_thread = None
