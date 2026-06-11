@@ -236,16 +236,10 @@ class BCIPipeline:
     # Main entry: run() with incremental re-run logic
     # ------------------------------------------------------------------
 
-    def run(self,
-            events: Optional['np.ndarray'] = None,
-            event_id: Optional[Dict[str, int]] = None) -> PipelineResult:
+    def run(self) -> PipelineResult:
         """Run pipeline, reusing unchanged upstream steps.
 
         Data must already be loaded via load_raw() before calling run().
-
-        Args:
-            events: Events array (optional).
-            event_id: Event ID dict (optional).
 
         Returns:
             PipelineResult
@@ -277,7 +271,7 @@ class BCIPipeline:
                 elif step == 'preprocess':
                     self.preprocess()
                 elif step == 'create_epochs':
-                    self.create_epochs(events, event_id)
+                    self.create_epochs()
                 elif step == 'decode':
                     self.decode()
                 self._states[step] = _StepState(
