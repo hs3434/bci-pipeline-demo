@@ -26,6 +26,7 @@ dev = [
     "ipython>=9.14.1",
     "pytest>=9.0.3",
     "pytest-xdist>=3.8.0",
+    "pyright>=1.1.400",
 ]
 
 [tool.hatch.build.targets.wheel]
