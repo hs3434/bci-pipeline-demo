@@ -52,13 +52,13 @@ class Epocher:
         self.epochs: Optional[mne.Epochs] = None
 
     def find_events(self, stim_channel: Optional[str] = None,
-                    min_duration: float = 0.001,
+                    min_duration: int = 1,
                     prefer_annotations: bool = False) -> np.ndarray:
         """Find events in the data.
 
         Args:
             stim_channel: Stimulus channel name. If None, uses MNE default.
-            min_duration: Minimum event duration (s).
+            min_duration: Minimum event duration (samples).
             prefer_annotations: If True, use annotations first instead of
                 trying stim channel.
 
@@ -75,7 +75,7 @@ class Epocher:
                 self.events = mne.find_events(
                     self.raw,
                     stim_channel=stim_channel,
-                    min_duration=int(min_duration),
+                    min_duration=min_duration,
                 )
             except ValueError:
                 logger.info("No stim channel, trying annotations...")
