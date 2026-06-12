@@ -41,7 +41,7 @@ class CSPDecoder(Decoder):
             ('scaler', StandardScaler()),
             ('lda', LinearDiscriminantAnalysis()),
         ])
-        self.pipeline.fit(X, y)
+        self.pipeline.fit(X, y)  # type: ignore[union-attr]  # assigned immediately above
         return self
 
     def predict(self, X: np.ndarray) -> np.ndarray:

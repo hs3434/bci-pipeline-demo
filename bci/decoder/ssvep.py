@@ -4,7 +4,7 @@ SSVEP Decoders
 Single-band CCA and Filter-Bank CCA (FBCCA) for SSVEP detection.
 """
 from __future__ import annotations
-from typing import List
+from typing import Sequence
 import numpy as np
 from bci.decoder.base import Decoder
 
@@ -16,13 +16,15 @@ class SSVEPDecoder(Decoder):
     predict() returns argmax over per-frequency CCA scores.
     """
 
-    def __init__(self, target_freqs: List[float], fs: float,
+    def __init__(self, target_freqs: Sequence[float], fs: float,
                  n_harmonics: int = 5):
         self.target_freqs = list(target_freqs)
         self.fs = fs
         self.n_harmonics = n_harmonics
         self.classes_ = np.array([str(f) + 'Hz' for f in target_freqs])
-        self._templates: dict[float, np.ndarray] = {}
+        self._templates: dict[float, float] = {}
+        self._low: float = 0.0
+        self._high: float = 0.0
         self._generate_templates()
 
     def _generate_templates(self):
@@ -75,14 +77,14 @@ class FBCCADecoder(Decoder):
     combines with weighted sum (weight ∝ n^(-1.25) + 0.25).
     """
 
-    def __init__(self, target_freqs: List[float], fs: float,
+    def __init__(self, target_freqs: Sequence[float], fs: float,
                  n_harmonics: int = 5, n_bands: int = 5):
         self.target_freqs = list(target_freqs)
         self.fs = fs
         self.n_harmonics = n_harmonics
         self.n_bands = n_bands
         self.classes_ = np.array([str(f) + 'Hz' for f in target_freqs])
-        self._sub_bands: List[SSVEPDecoder] = []
+        self._sub_bands: list[SSVEPDecoder] = []
         self._weights: np.ndarray = np.array([])
 
     def fit(self, X: np.ndarray, y: np.ndarray) -> 'FBCCADecoder':
@@ -119,5 +121,5 @@ class FBCCADecoder(Decoder):
                   ) -> np.ndarray:
         from scipy.signal import butter, filtfilt
         nyq = 0.5 * self.fs
-        b, a = butter(4, [low / nyq, high / nyq], btype='band')
+        b, a = butter(4, [low / nyq, high / nyq], btype='band')  # type: ignore[assignment]  # scipy butter stub returns complex union
         return filtfilt(b, a, data, axis=-1)

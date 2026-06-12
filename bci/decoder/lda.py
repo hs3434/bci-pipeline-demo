@@ -14,6 +14,9 @@ try:
     SKLEARN_OK = True
 except ImportError:
     SKLEARN_OK = False
+    StandardScaler = None  # type: ignore[assignment,misc]
+    PCA = None  # type: ignore[assignment,misc]
+    LinearDiscriminantAnalysis = None  # type: ignore[assignment,misc]
 
 
 class LDADecoder(Decoder):
@@ -27,6 +30,9 @@ class LDADecoder(Decoder):
         if not SKLEARN_OK:
             raise ImportError("scikit-learn required for LDADecoder")
         self.n_components = n_components
+        assert StandardScaler is not None
+        assert PCA is not None
+        assert LinearDiscriminantAnalysis is not None
         self.scaler = StandardScaler()
         self.pca = PCA(n_components=n_components)
         self.clf = LinearDiscriminantAnalysis()
