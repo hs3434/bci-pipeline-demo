@@ -166,7 +166,7 @@ class EEGInfoPanel(QFrame):
 # Helpers
 # ----------------------------------------------------------------
 
-def _display_name(source: EEGSource) -> str:
+def _display_name(source: 'mne.io.Raw' | StreamSource) -> str:
     import re
     from pathlib import Path
     path = getattr(source, 'filepath', None)
@@ -177,7 +177,7 @@ def _display_name(source: EEGSource) -> str:
     return "EEG Data"
 
 
-def _channel_label(source: EEGSource) -> str:
+def _channel_label(source: 'mne.io.Raw' | StreamSource) -> str:
     if hasattr(source, 'ch_names'):
         names = source.ch_names[:6]
         suffix = f" +{len(source.ch_names) - 6}" if len(source.ch_names) > 6 else ""
