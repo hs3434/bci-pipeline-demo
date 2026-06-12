@@ -99,7 +99,7 @@ class BCIPipeline:
         self._raw_original = raw
         self.raw = raw
         self._steps.append('load')
-        self.logger.info(f"Loaded: {len(self.raw.ch_names)} channels")
+        self.logger.info(f"Loaded: {len(raw.ch_names)} channels")
         return self
 
     def preprocess(self) -> 'BCIPipeline':
@@ -143,7 +143,8 @@ class BCIPipeline:
                 baseline=self.config.epoch.baseline,
             )
             self._steps.append('create_epochs')
-            self.logger.info(f"Created {len(self.epochs)} epochs")
+            n_epochs = len(self.epochs) if self.epochs is not None else 0
+            self.logger.info(f"Created {n_epochs} epochs")
             return self
         except Exception as e:
             self.logger.error(f"Epoch creation failed: {e}")
@@ -205,7 +206,8 @@ class BCIPipeline:
             from bci.decoder import create_decoder
             kwargs: dict = {}
             if self.config.decode.method in ('ssvep', 'fbcca'):
-                kwargs['fs'] = self.epochs.info.get('sfreq', 256)
+                sfreq = self.epochs.info.get('sfreq', 256) if self.epochs is not None else 256
+                kwargs['fs'] = sfreq
                 kwargs['target_freqs'] = sorted(set(labels))
             decoder = create_decoder(self.config.decode.method, **kwargs)
             decoder.fit(data, labels)

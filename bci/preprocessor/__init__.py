@@ -5,7 +5,7 @@ Signal preprocessing: filtering, ICA, artifact removal
 """
 
 from __future__ import annotations
-from typing import Optional, List, Tuple, TYPE_CHECKING
+from typing import Optional, Sequence, Tuple, TYPE_CHECKING
 import logging
 import numpy as np
 
@@ -60,7 +60,7 @@ class Preprocessor:
         self.raw.filter(l_freq=l_freq, h_freq=h_freq)
         return self
 
-    def notch(self, freqs: List[int]) -> 'Preprocessor':
+    def notch(self, freqs: Sequence[int]) -> 'Preprocessor':
         """Apply notch filter to remove powerline noise
 
         Args:
@@ -91,7 +91,7 @@ class Preprocessor:
         self.raw.set_eeg_reference(ref)
         return self
 
-    def interpolate_bad_channels(self, bads: Optional[List[str]] = None) -> 'Preprocessor':
+    def interpolate_bad_channels(self, bads: Optional[Sequence[str]] = None) -> 'Preprocessor':
         """Interpolate bad channels
 
         Args:
@@ -127,7 +127,7 @@ class Preprocessor:
 
     def get_data(self) -> Tuple[np.ndarray, np.ndarray]:
         """Get preprocessed data and times"""
-        return self.raw.get_data(), self.raw.times  # type: ignore
+        return self.raw.get_data(), self.raw.times  # type: ignore[attr-defined]  # mne stubs missing .times
 
 
 def preprocess(raw: mne.io.Raw, filter_config: FilterConfig) -> mne.io.Raw:

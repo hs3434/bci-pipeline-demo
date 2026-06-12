@@ -131,9 +131,11 @@ class Epocher:
             reject=reject
         )
 
-        n_rejected = len(self.epochs.drop_log)
-        logger.info(f"Extracted {len(self.epochs)} epochs, "
-                   f"{n_rejected} rejected ({n_rejected/len(self.epochs)*100:.1f}%)")
+        n_rejected = len(self.epochs.drop_log) if self.epochs is not None and self.epochs.drop_log is not None else 0
+        n_total = len(self.epochs) if self.epochs is not None else 0
+        pct = (n_rejected / n_total * 100) if n_total else 0
+        logger.info(f"Extracted {n_total} epochs, "
+                   f"{n_rejected} rejected ({pct:.1f}%)")
 
         return self.epochs
 

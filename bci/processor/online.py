@@ -5,7 +5,7 @@ Causal, real-time signal processing: lfilter with state, sliding-window
 normalization, threshold-based artifact removal.
 """
 from __future__ import annotations
-from typing import List
+from typing import Sequence
 import numpy as np
 from scipy.signal import butter, lfilter, iirnotch
 
@@ -33,7 +33,7 @@ class OnlineProcessor:
                  order: int = 4) -> np.ndarray:
         """Apply causal bandpass filter with maintained state."""
         nyq = self.sfreq / 2
-        b, a = butter(order, [l_freq / nyq, h_freq / nyq], btype='band')
+        b, a = butter(order, [l_freq / nyq, h_freq / nyq], btype='band')  # type: ignore[assignment]  # scipy butter stub returns complex union
 
         key = (l_freq, h_freq, order)
         if self._bandpass_state is None or self._bandpass_state != key:
@@ -42,16 +42,18 @@ class OnlineProcessor:
             self._bandpass_state = key
 
         result = np.zeros_like(data)
-        new_zi = np.zeros_like(self._bandpass_zi)
+        zi = self._bandpass_zi
+        new_zi = np.zeros_like(zi) if zi is not None else np.zeros((0, 0))
         for ch in range(data.shape[0]):
-            y, zf = lfilter(b, a, data[ch], zi=self._bandpass_zi[:, ch])
+            zi_ch = zi[:, ch] if zi is not None else np.array([])
+            y, zf = lfilter(b, a, data[ch], zi=zi_ch)  # type: ignore[assignment]  # scipy lfilter stub
             result[ch] = y
             new_zi[:, ch] = zf
         self._bandpass_zi = new_zi
         return result
 
     def notch(self, data: np.ndarray,
-              freqs: List[int] | None = None,
+              freqs: Sequence[int] | None = None,
               q: int = 30) -> np.ndarray:
         """Apply causal notch filter(s) with maintained state."""
         if freqs is None:
