@@ -4,7 +4,7 @@ Decode Page
 Decode method configuration + CV fold results chart.
 """
 from __future__ import annotations
-from typing import Optional, List
+from typing import Optional, Sequence
 
 import numpy as np
 from PyQt6.QtWidgets import (
@@ -67,7 +67,7 @@ class DecodePage(QFrame):
         return self._cv_folds.value()
 
     def show_result(self, accuracy: float, std: float,
-                    cv_scores: Optional[List[float]] = None,
+                    cv_scores: Optional[Sequence[float]] = None,
                     method: str = ""):
         ax = self._fig.axes[0]
         ax.clear()

@@ -6,7 +6,7 @@ BCI Pipeline Configuration - YAML/dataclass/validation
 
 from __future__ import annotations
 from dataclasses import dataclass, field, asdict
-from typing import List, Optional, Tuple, Dict, Any
+from typing import List, Optional, Tuple, Dict
 from pathlib import Path
 
 import yaml

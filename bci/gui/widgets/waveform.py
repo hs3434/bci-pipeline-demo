@@ -7,7 +7,7 @@ Multi-channel: tiles into columns of N channels each for readability.
 from __future__ import annotations
 import math
 import numpy as np
-from typing import List, Optional
+from typing import Optional, Sequence
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 
@@ -29,7 +29,7 @@ class EEGWaveformWidget(FigureCanvasQTAgg):
         self.setParent(parent)
         self._axes: list = []
         self._buffer = None
-        self._ch_names: List[str] = []
+        self._ch_names: Sequence[str] = []
         self._sfreq = 256.0
         self._window_samples = 0
         self._yscale = 50.0
@@ -109,7 +109,7 @@ class EEGWaveformWidget(FigureCanvasQTAgg):
     # ----------------------------------------------------------------
 
     def _init_buffer(self, n_channels: int, sfreq: float,
-                     ch_names: List[str], window_sec: float = 5.0):
+                     ch_names: Sequence[str], window_sec: float = 5.0):
         self._sfreq = sfreq
         self._ch_names = ch_names
         self._window_samples = int(window_sec * sfreq)
@@ -134,7 +134,7 @@ class EEGWaveformWidget(FigureCanvasQTAgg):
         self.draw_idle()
 
     def plot_batch(self, data: np.ndarray, sfreq: float,
-                   ch_names: Optional[List[str]] = None):
+                   ch_names: Optional[Sequence[str]] = None):
         if ch_names is not None:
             self._ch_names = ch_names
         n_ch, _ = data.shape
@@ -146,7 +146,7 @@ class EEGWaveformWidget(FigureCanvasQTAgg):
         self.draw_idle()
 
     def plot_batch_window(self, data: np.ndarray, sfreq: float,
-                          ch_names: Optional[List[str]], t_start: float,
+                          ch_names: Optional[Sequence[str]], t_start: float,
                           window_sec: float = 5.0):
         if ch_names is not None:
             self._ch_names = ch_names

@@ -4,7 +4,7 @@ Result Panel
 Displays decoding results: accuracy bar chart + text summary.
 """
 from __future__ import annotations
-from typing import Optional, List
+from typing import Optional, Sequence
 import numpy as np
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QTextEdit
@@ -67,7 +67,7 @@ class ResultPanel(QWidget):
     # ----------------------------------------------------------------
 
     def update_batch(self, accuracy: float, std: float,
-                     cv_scores: Optional[List[float]] = None,
+                     cv_scores: Optional[Sequence[float]] = None,
                      method: str = ""):
         """Display batch decoding results with bar chart."""
         self._ax.clear()

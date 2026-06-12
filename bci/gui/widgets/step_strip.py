@@ -68,7 +68,7 @@ class StepStrip(QFrame):
             label = QLabel(f"{self.SYMBOLS[StepStatus.PENDING]} {name}")
             label.setStyleSheet(self.STYLES[StepStatus.PENDING])
             idx = i
-            label.mousePressEvent = lambda e, n=idx: self._on_click(n)  # type: ignore
+            label.mousePressEvent = lambda e, n=idx: self._on_click(n)  # type: ignore[assignment]  # Qt lambda override
             self._labels.append(label)
             layout.addWidget(label)
 

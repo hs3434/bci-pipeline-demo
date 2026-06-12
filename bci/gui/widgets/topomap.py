@@ -5,7 +5,7 @@ Scalp topography display using MNE's plotting capabilities.
 """
 from __future__ import annotations
 import numpy as np
-from typing import List
+from typing import Sequence
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 
@@ -29,7 +29,7 @@ class TopomapWidget(FigureCanvasQTAgg):
         size = min(self.width(), self.height()) / dpi
         self.fig.set_size_inches(size, size)
 
-    def update_topo(self, data: np.ndarray, ch_names: List[str]):
+    def update_topo(self, data: np.ndarray, ch_names: Sequence[str]):
         """Update topomap with channel data."""
         try:
             import mne
