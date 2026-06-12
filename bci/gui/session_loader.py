@@ -167,6 +167,6 @@ def find_session_runs(filepath: Path) -> List[Path]:
     pattern = f"{filepath.parent}/{base}*{ext}"
     runs = sorted(
         glob_lib.glob(pattern),
-        key=lambda p: int(re.search(r'R(\d+)', p).group(1)),
+        key=lambda p: int(m.group(1)) if (m := re.search(r'R(\d+)', p)) else 0,
     )
     return [Path(p) for p in runs]

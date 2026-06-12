@@ -333,8 +333,9 @@ class StreamTab(QWidget):
 
     def _on_chunk(self, chunk):
         self.waveform_widget.update_stream(chunk)
-        self.spectrum_widget.update_psd(chunk, self._stream_source.sfreq)
-        self.info_panel.update_elapsed(self._stream_source)
+        if self._stream_source is not None:
+            self.spectrum_widget.update_psd(chunk, self._stream_source.sfreq)
+            self.info_panel.update_elapsed(self._stream_source)
 
     def _on_stream_finished(self, _=None):
         self.status_label.setText("Playback complete")

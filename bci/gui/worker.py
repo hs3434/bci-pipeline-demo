@@ -10,7 +10,7 @@ All workers inherit BaseWorker (QObject) and use the moveToThread pattern:
 """
 from __future__ import annotations
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Optional, List, Union
+from typing import TYPE_CHECKING, Optional, Sequence, Union
 import numpy as np
 from pathlib import Path
 from scipy.signal import welch
@@ -23,6 +23,7 @@ from bci.pipeline import BCIPipeline
 
 if TYPE_CHECKING:
     from mne.io import Raw
+    from bci.streaming.sliding_window import SlidingWindow
 
 class BaseWorker(QObject):
     """Abstract base for all background workers.
@@ -60,6 +61,7 @@ class BaseWorker(QObject):
         """
         self._thread = QThread(parent)
         self.moveToThread(self._thread)
+        assert self._thread is not None
         self._thread.started.connect(slot or self.run)
         self.finished.connect(self._thread.quit)
         self._thread.start()
@@ -90,7 +92,7 @@ class LoadWorker(BaseWorker):
     """
     load_progress = pyqtSignal(int, int)
 
-    def __init__(self, filepaths: List[str]):
+    def __init__(self, filepaths: Sequence[str]):
         super().__init__()
         self.filepaths = list(filepaths)
 
@@ -176,7 +178,7 @@ class StreamWorker(BaseWorker):
             self.source = StreamSource(source, chunk_duration)
 
         self._model = None
-        self._label_names: List[str] = []
+        self._label_names: list[str] = []
 
         self._timer: Optional[QTimer] = None
         self._filter_enabled = True
@@ -202,9 +204,10 @@ class StreamWorker(BaseWorker):
     def _start_timer(self):
         """Create and start the QTimer — must run in the worker's thread."""
         interval_ms = int(self.source.chunk_duration * 1000 / max(0.01, self._speed))
-        self._timer = QTimer(self)
-        self._timer.timeout.connect(self._emit_chunk)
-        self._timer.start(max(1, interval_ms))
+        timer = QTimer(self)
+        self._timer = timer
+        timer.timeout.connect(self._emit_chunk)
+        timer.start(max(1, interval_ms))
 
     def pause(self):
         """Pause streaming without closing the source."""

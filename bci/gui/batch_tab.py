@@ -4,7 +4,7 @@ Batch Tab -- Offline Analysis
 Load file -> configure per-step params -> Run pipeline -> view results.
 """
 from __future__ import annotations
-from typing import TYPE_CHECKING, Optional, List
+from typing import TYPE_CHECKING, Optional, List, Sequence
 from pathlib import Path
 
 from PyQt6.QtCore import QThread
@@ -175,7 +175,7 @@ class BatchTab(QWidget):
         QMessageBox.warning(self, "Load Error", msg)
 
     def _on_run(self):
-        if not self._filepaths:
+        if self._source is None:
             return
         self._config.filter.l_freq = self._preprocess_page.l_freq
         self._config.filter.h_freq = self._preprocess_page.h_freq
@@ -210,7 +210,7 @@ class BatchTab(QWidget):
 
     _STEP_IDX = {'load': 0, 'preprocess': 1, 'create_epochs': 2, 'decode': 3}
 
-    def _on_steps_skipped(self, skipped: list):
+    def _on_steps_skipped(self, skipped: Sequence[str]):
         for step_name in skipped:
             idx = self._STEP_IDX.get(step_name)
             if idx is not None:
