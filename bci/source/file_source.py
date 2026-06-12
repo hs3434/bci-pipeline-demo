@@ -16,7 +16,7 @@ class FileSource:
     """
 
     @staticmethod
-    def load(filepath: Path | str | List[str]):
+    def load(filepath: Path | str | List[Path | str]) -> mne.io.Raw:
         """Load EEG file(s) and return an MNE Raw object.
 
         Parameters
