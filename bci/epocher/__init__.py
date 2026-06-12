@@ -45,11 +45,11 @@ class Epocher:
         >>> epochs = create_epochs(raw, events, {'left': 1, 'right': 2}, tmin=-0.2, tmax=0.5)
     """
 
-    def __init__(self, raw: 'mne.io.Raw', config: Optional['EpochConfig'] = None):
+    def __init__(self, raw: mne.io.Raw, config: Optional[EpochConfig] = None):
         self.raw = raw
         self.config = config
         self.events: Optional[np.ndarray] = None
-        self.epochs: Optional['mne.Epochs'] = None
+        self.epochs: Optional[mne.Epochs] = None
 
     def find_events(self, stim_channel: Optional[str] = None,
                     min_duration: float = 0.001,
@@ -91,7 +91,7 @@ class Epocher:
                       event_id: Optional[Dict[str, int]] = None,
                       tmin: float = -0.2, tmax: float = 0.5,
                       baseline: Tuple[Optional[float], Optional[float]] = (None, 0),
-                      preload: bool = True) -> 'mne.Epochs':
+                      preload: bool = True) -> mne.Epochs:
         """Extract epochs around events
 
         Args:
@@ -162,8 +162,8 @@ class Epocher:
         return data, labels
 
 
-def create_epochs(raw: 'mne.io.Raw', events: np.ndarray,
-                 event_id: Dict[str, int], **kwargs) -> 'mne.Epochs':
+def create_epochs(raw: mne.io.Raw, events: np.ndarray,
+                 event_id: Dict[str, int], **kwargs) -> mne.Epochs:
     """Convenience function to create epochs"""
     epocher = Epocher(raw)
     return epocher.extract_epochs(events, event_id, **kwargs)

@@ -81,12 +81,12 @@ class BCIPipeline:
         self.config = config
         self.logger = logging.getLogger(__name__)
 
-        self.raw: Optional['mne.io.Raw'] = None
-        self.epochs: Optional['mne.Epochs'] = None
-        self.events: Optional['np.ndarray'] = None
+        self.raw: Optional[mne.io.Raw] = None
+        self.epochs: Optional[mne.Epochs] = None
+        self.events: Optional[np.ndarray] = None
         self.result: Optional[PipelineResult] = None
 
-        self._raw_original: Optional['mne.io.Raw'] = None
+        self._raw_original: Optional[mne.io.Raw] = None
         self._steps: List[str] = []
         self._states: Dict[str, _StepState] = {}
 
@@ -94,7 +94,7 @@ class BCIPipeline:
     # Step methods — each returns self for fluent chaining
     # ------------------------------------------------------------------
 
-    def load_raw(self, raw: 'mne.io.Raw') -> 'BCIPipeline':
+    def load_raw(self, raw: mne.io.Raw) -> 'BCIPipeline':
         """Load from an already-loaded MNE Raw object."""
         self._raw_original = raw
         self.raw = raw

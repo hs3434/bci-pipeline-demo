@@ -41,7 +41,7 @@ class Preprocessor:
         >>> # ica.apply(raw)  # remove bad components
     """
 
-    def __init__(self, raw: 'mne.io.Raw', config: Optional['FilterConfig'] = None):
+    def __init__(self, raw: mne.io.Raw, config: Optional[FilterConfig] = None):
         from bci.config import FilterConfig
         self.raw = raw
         self._filter_config = config
@@ -107,7 +107,7 @@ class Preprocessor:
             self.raw.interpolate_bads(reset_bads=True)
         return self
 
-    def apply_ica(self, n_components: int = 20, random_state: int = 42) -> 'ICA':
+    def apply_ica(self, n_components: int = 20, random_state: int = 42) -> ICA:
         """Apply ICA for artifact removal
 
         Args:
@@ -130,7 +130,7 @@ class Preprocessor:
         return self.raw.get_data(), self.raw.times  # type: ignore
 
 
-def preprocess(raw: 'mne.io.Raw', filter_config: 'FilterConfig') -> 'mne.io.Raw':
+def preprocess(raw: mne.io.Raw, filter_config: FilterConfig) -> mne.io.Raw:
     """Convenience function to preprocess raw data"""
     preprocessor = Preprocessor(raw, filter_config)
     preprocessor.bandpass(filter_config.l_freq, filter_config.h_freq)
