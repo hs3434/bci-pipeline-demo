@@ -27,7 +27,7 @@ class TestEEGReaderABC:
     def test_cannot_instantiate_abstract(self):
         from bci.source.base import EEGReader
         with pytest.raises(TypeError):
-            EEGReader()  # type: ignore[abstract]
+            EEGReader()  # type: ignore[abstract]  # deliberate ABC instantiation for TypeError test
 
     def test_concrete_must_implement_read(self):
         from bci.source.base import EEGReader
@@ -37,7 +37,7 @@ class TestEEGReaderABC:
             def suffixes(cls): return ('.x',)
 
         with pytest.raises(TypeError):
-            PartialReader()  # type: ignore[abstract]
+            PartialReader()  # type: ignore[abstract]  # deliberate partial ABC instantiation for TypeError test
 
 
 class TestReaderRegistry:

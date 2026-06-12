@@ -40,7 +40,7 @@ class TestOnlineProcessor:
 
     def test_bandpass_causal_differs_from_filtfilt(self, processor, signal):
         data, sfreq = signal
-        b, a = butter(4, [1.0 / (sfreq / 2), 30.0 / (sfreq / 2)], btype='band')
+        b, a = butter(4, [1.0 / (sfreq / 2), 30.0 / (sfreq / 2)], btype='band')  # type: ignore[assignment]  # scipy butter stub
         result_offline = filtfilt(b, a, data[0])
         result_online = processor.bandpass(data[:, :], l_freq=1.0, h_freq=30.0)
         assert not np.allclose(result_offline, result_online[0])
@@ -94,7 +94,7 @@ class TestOnlineProcessor:
         """Standalone: apply lfilter from scratch (no state) for reference"""
         from scipy.signal import butter, lfilter
         nyq = sfreq / 2
-        b, a = butter(4, [l_freq / nyq, h_freq / nyq], btype='band')
+        b, a = butter(4, [l_freq / nyq, h_freq / nyq], btype='band')  # type: ignore[assignment]  # scipy butter stub
         result = np.zeros_like(data)
         for ch in range(data.shape[0]):
             result[ch] = lfilter(b, a, data[ch])

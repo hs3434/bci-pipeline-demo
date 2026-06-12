@@ -63,7 +63,7 @@ class TestFindSessionRuns:
                 _create_fake_fif(fif)
             from bci.gui.session_loader import find_session_runs
             runs = find_session_runs(Path(tmp) / 'S001R04.fif')
-            run_nums = [int(re.search(r'R(\d+)', str(r)).group(1)) for r in runs]
+            run_nums = [int(m.group(1)) for r in runs if (m := re.search(r'R(\d+)', str(r)))]
             assert run_nums == [4, 6, 8, 10]
 
 
@@ -103,7 +103,7 @@ class TestSessionConcatenation:
             raw = FileSource.load(paths)
             stream = StreamSource(raw)
             chunk = stream.read_chunk(500)
-            assert chunk.shape == (4, 500)
+            assert chunk is not None and chunk.shape == (4, 500)
 
     def test_read_all_chunks_exhausts(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -193,7 +193,7 @@ class TestSessionConcatenation:
         assert raw.n_times == 20000 * len(runs)
         stream = StreamSource(raw)
         chunk = stream.read_chunk(1600)
-        assert chunk.shape == (64, 1600)
+        assert chunk is not None and chunk.shape == (64, 1600)
 
 
 class TestBatchTabSessionLoading:

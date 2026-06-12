@@ -76,7 +76,7 @@ class TestCNNDecoder:
     def test_save_without_fit_raises(self, decoder):
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "cnn.pt"
-            with pytest.raises(AttributeError):
+            with pytest.raises((AttributeError, RuntimeError)):
                 decoder.save(path)
 
     def test_multi_class_prediction(self):

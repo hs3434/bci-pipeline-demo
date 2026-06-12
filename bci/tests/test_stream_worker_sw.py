@@ -76,7 +76,7 @@ class TestStreamWorkerEmitChunkWithSW:
                 self.last_X_shape = X.shape
                 return np.array([[0.3, 0.7]])
         fake_model = FakeModel()
-        sw._model = fake_model
+        sw._model = fake_model  # type: ignore[assignment]  # test mock
         sw._label_names = ["L", "R"]
 
         # Capture prediction emission
@@ -116,7 +116,7 @@ class TestStreamWorkerEmitChunkWithSW:
                 return np.array([[0.5, 0.5]])
             classes_ = np.array([0, 1])
         fake = FakeModel()
-        sw._model = fake
+        sw._model = fake  # type: ignore[assignment]  # test mock
 
         predictions = []
         sw.prediction.connect(lambda lbl, conf: predictions.append((lbl, conf)))
@@ -143,7 +143,7 @@ class TestStreamWorkerEmitChunkWithSW:
                 return np.array([[0.5, 0.5]])
             classes_ = np.array([0, 1])
         fake = FakeModel()
-        sw._model = fake
+        sw._model = fake  # type: ignore[assignment]  # test mock
         sw._label_names = ["L", "R"]
 
         predictions = []
