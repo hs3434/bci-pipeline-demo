@@ -8,7 +8,6 @@ from __future__ import annotations
 from PyQt6.QtWidgets import QWidget, QHBoxLayout, QLabel, QFrame
 
 from bci.source.stream_source import StreamSource
-from bci.source.types import EEGSource
 
 
 class EEGInfoPanel(QFrame):
