@@ -169,9 +169,15 @@ tactical consequences of.
   `import mne` at module top. PyQt6 launches on the main thread; forcing a
   multi-second mne import there kills UX. The `from __future__ import
   annotations` + `'...'` quoting pattern is load-bearing.
-- **Protocol over Union at module boundaries.** `EEGSource` (mne.io.Raw +
-  StreamSource) names the concept and lets consumers accept both without
-  repeating `Union[...]` everywhere.
+- **Protocol over Union — but only when the Protocol captures a *real* shared shape.**
+  We introduced `EEGSource` (mne.io.Raw + StreamSource) at the GUI/info-panel
+  boundary in the 06-12 refactor and removed it the same day: the two consumer
+  methods accessed different attributes, and the only "shared" surface was
+  `getattr/hasattr` defensive access — not a real interface. A Protocol that
+  doesn't accurately describe every implementer (e.g. claiming `n_times` /
+  `get_data` that `StreamSource` doesn't have) is a documentation lie and
+  will break `isinstance` checks under `@runtime_checkable`. Verify the
+  shared shape is real before introducing one.
 - **`@runtime_checkable` is risky** when a Protocol declares a property
   but an implementer has a plain attribute (or vice versa) — `isinstance`
   silently fails. Drop it (default to typing-only) unless you control both
@@ -230,6 +236,9 @@ tactical consequences of.
 - Don't rename `filepath` back to `source_path` or `n_samples` back to
   `n_times` in decoder code; the refactor just landed and the README/spec
   reflect the new names.
+- Don't introduce a Protocol just to "name a concept" — verify the shared
+  shape is real first (callers access the same attributes the same way).
+  See the `EEGSource` lesson in **Type honesty** above.
 
 ## Skills
 
