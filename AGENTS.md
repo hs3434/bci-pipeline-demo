@@ -182,6 +182,11 @@ tactical consequences of.
   but an implementer has a plain attribute (or vice versa) — `isinstance`
   silently fails. Drop it (default to typing-only) unless you control both
   sides. See commit `c3b0dd2`.
+- **Resolve type-check warnings, don't suppress them.** Run `pyright`
+  first — it catches call-site mismatches (e.g. `Optional[T]` passed to `T`)
+  that grep misses. Fix by root cause: variance → `Sequence`, stub too broad →
+  `cast`, Optional without guard → add None check. `# type: ignore` must
+  specify error code AND reason. See `type-honesty` skill Rule 7.
 
 ### Single source of truth
 
