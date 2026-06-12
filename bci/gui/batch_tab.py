@@ -4,7 +4,7 @@ Batch Tab -- Offline Analysis
 Load file -> configure per-step params -> Run pipeline -> view results.
 """
 from __future__ import annotations
-from typing import Optional, List
+from typing import TYPE_CHECKING, Optional, List
 from pathlib import Path
 
 from PyQt6.QtCore import QThread
@@ -20,19 +20,23 @@ from bci.gui.widgets import (
 )
 from bci.gui.worker import BatchWorker, LoadWorker
 
+if TYPE_CHECKING:
+    from mne.io import Raw
+    from bci.pipeline import BCIPipeline
+
 
 class BatchTab(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self._filepaths: List[str] = []
-        self._source: Optional['mne.io.Raw'] = None
+        self._source: Optional[Raw] = None
         self._config = create_default_config()
         self._worker: Optional[BatchWorker] = None
         self._worker_thread: Optional[QThread] = None
         self._load_worker: Optional[LoadWorker] = None
         self._load_thread: Optional[QThread] = None
-        self._pipeline: Optional['BCIPipeline'] = None
+        self._pipeline: Optional[BCIPipeline] = None
         self._setup_ui()
 
     def _setup_ui(self):
@@ -142,7 +146,7 @@ class BatchTab(QWidget):
         self._load_worker.error.connect(self._on_load_error)
         self._load_thread = self._load_worker.start_in_thread()
 
-    def _on_load_finished(self, source: 'mne.io.Raw'):
+    def _on_load_finished(self, source: Raw):
         self._source = source
         self._load_worker = None
         self._load_thread = None

@@ -4,7 +4,7 @@ Stream Tab — Real-Time Viewing
 Simulated live feed from file with playback controls.
 """
 from __future__ import annotations
-from typing import Optional, List
+from typing import TYPE_CHECKING, Optional, List
 from pathlib import Path
 
 from PyQt6.QtWidgets import (
@@ -20,6 +20,10 @@ from bci.gui.widgets import (
 )
 from bci.gui.worker import StreamWorker, LoadWorker
 
+if TYPE_CHECKING:
+    from mne.io import Raw
+    from bci.source.stream_source import StreamSource
+
 
 class StreamTab(QWidget):
     """Real-time streaming analysis tab.
@@ -30,8 +34,8 @@ class StreamTab(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._filepaths: List[str] = []
-        self._source: Optional['mne.io.Raw'] = None
-        self._stream_source: Optional['StreamSource'] = None
+        self._source: Optional[Raw] = None
+        self._stream_source: Optional[StreamSource] = None
         self._worker: Optional[StreamWorker] = None
         self._worker_thread: Optional[QThread] = None
         self._load_worker: Optional[LoadWorker] = None
@@ -237,7 +241,7 @@ class StreamTab(QWidget):
         self.load_progress_bar.setMaximum(total)
         self.load_progress_bar.setValue(current)
 
-    def _on_load_finished(self, source: 'mne.io.Raw'):
+    def _on_load_finished(self, source: Raw):
         from bci.source import StreamSource
         self._stream_source = StreamSource(source, filepath=self._filepaths[0] if self._filepaths else None)
         self._load_worker = None

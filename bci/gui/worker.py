@@ -10,7 +10,7 @@ All workers inherit BaseWorker (QObject) and use the moveToThread pattern:
 """
 from __future__ import annotations
 from abc import abstractmethod
-from typing import Optional, List, Union
+from typing import TYPE_CHECKING, Optional, List, Union
 import numpy as np
 from pathlib import Path
 from scipy.signal import welch
@@ -20,6 +20,9 @@ from PyQt6.QtCore import QObject, pyqtSignal, QTimer, QThread
 from bci.config import PipelineConfig
 from bci.source import FileSource, StreamSource
 from bci.pipeline import BCIPipeline
+
+if TYPE_CHECKING:
+    from mne.io import Raw
 
 class BaseWorker(QObject):
     """Abstract base for all background workers.
@@ -114,8 +117,8 @@ class BatchWorker(BaseWorker):
     log = pyqtSignal(str)
     steps_skipped = pyqtSignal(list)
 
-    def __init__(self, source: 'mne.io.Raw', config: PipelineConfig,
-                 pipeline: Optional['BCIPipeline'] = None):
+    def __init__(self, source: Raw, config: PipelineConfig,
+                 pipeline: Optional[BCIPipeline] = None):
         super().__init__()
         self.source = source
         self.config = config
@@ -164,7 +167,7 @@ class StreamWorker(BaseWorker):
     _start_timer_signal = pyqtSignal()
     _stop_timer_signal = pyqtSignal()
 
-    def __init__(self, source: Union['StreamSource', 'mne.io.Raw'], chunk_duration: float = 0.1):
+    def __init__(self, source: Union[StreamSource, Raw], chunk_duration: float = 0.1):
         super().__init__()
 
         if isinstance(source, StreamSource):
