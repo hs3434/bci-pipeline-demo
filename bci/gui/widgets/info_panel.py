@@ -77,7 +77,7 @@ class EEGInfoPanel(QFrame):
     # Public API
     # ----------------------------------------------------------------
 
-    def show_batch(self, source: EEGSource) -> None:
+    def show_batch(self, source: 'mne.io.Raw') -> None:
         """Populate with static overview (batch mode)."""
         self._clear_fields()
         self._mode = "batch"
