@@ -5,9 +5,14 @@ Dual-mode info bar: static overview (batch) / live monitor (stream).
 """
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from PyQt6.QtWidgets import QWidget, QHBoxLayout, QLabel, QFrame
 
 from bci.source.stream_source import StreamSource
+
+if TYPE_CHECKING:
+    from mne.io import Raw
 
 
 class EEGInfoPanel(QFrame):
@@ -76,7 +81,7 @@ class EEGInfoPanel(QFrame):
     # Public API
     # ----------------------------------------------------------------
 
-    def show_batch(self, source: 'mne.io.Raw') -> None:
+    def show_batch(self, source: Raw) -> None:
         """Populate with static overview (batch mode)."""
         self._clear_fields()
         self._mode = "batch"
@@ -165,7 +170,7 @@ class EEGInfoPanel(QFrame):
 # Helpers
 # ----------------------------------------------------------------
 
-def _display_name(source: 'mne.io.Raw' | StreamSource) -> str:
+def _display_name(source: Raw | StreamSource) -> str:
     import re
     from pathlib import Path
     path = getattr(source, 'filepath', None)
@@ -176,7 +181,7 @@ def _display_name(source: 'mne.io.Raw' | StreamSource) -> str:
     return "EEG Data"
 
 
-def _channel_label(source: 'mne.io.Raw' | StreamSource) -> str:
+def _channel_label(source: Raw | StreamSource) -> str:
     if hasattr(source, 'ch_names'):
         names = source.ch_names[:6]
         suffix = f" +{len(source.ch_names) - 6}" if len(source.ch_names) > 6 else ""

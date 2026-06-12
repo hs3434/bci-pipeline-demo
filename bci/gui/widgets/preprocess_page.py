@@ -4,9 +4,12 @@ Preprocess Page
 Filter parameter configuration + PSD before/after comparison chart.
 """
 from __future__ import annotations
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import numpy as np
+
+if TYPE_CHECKING:
+    from mne.io import Raw
 from PyQt6.QtWidgets import (
     QFrame, QHBoxLayout, QLabel, QGroupBox, QDoubleSpinBox,
 )
@@ -66,7 +69,7 @@ class PreprocessPage(QFrame):
     def h_freq(self) -> float:
         return self._h_freq.value()
 
-    def refresh_chart(self, data: Optional['mne.io.Raw'] = None):
+    def refresh_chart(self, data: Optional[Raw] = None):
         ax = self._fig.axes[0]
         ax.clear()
         ax.set_facecolor('#1e1e1e')

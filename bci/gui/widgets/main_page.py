@@ -4,7 +4,7 @@ Main Page
 Overview page: Info Panel + Waveform (scrollable) + Results + Log + Progress.
 """
 from __future__ import annotations
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 import numpy as np
 from PyQt6.QtWidgets import (
@@ -15,6 +15,10 @@ from PyQt6.QtCore import Qt, pyqtSignal
 from bci.gui.widgets.info_panel import EEGInfoPanel
 from bci.gui.widgets.waveform import EEGWaveformWidget
 from bci.gui.widgets.result_panel import ResultPanel
+
+if TYPE_CHECKING:
+    from mne.io import Raw
+    from bci.source.stream_source import StreamSource
 
 
 class MainPage(QFrame):
@@ -83,10 +87,10 @@ class MainPage(QFrame):
     def result_panel(self) -> ResultPanel:
         return self._result_panel
 
-    def show_batch_info(self, source: 'mne.io.Raw'):
+    def show_batch_info(self, source: Raw):
         self._info_panel.show_batch(source)
 
-    def show_stream_info(self, source: 'StreamSource'):
+    def show_stream_info(self, source: StreamSource):
         self._info_panel.show_stream(source)
 
     def clear_info(self):

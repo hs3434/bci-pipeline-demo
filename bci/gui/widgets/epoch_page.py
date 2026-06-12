@@ -4,9 +4,12 @@ Epoch Page
 Epoch parameter + event config + butterfly ERP + rejection stats chart.
 """
 from __future__ import annotations
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import numpy as np
+
+if TYPE_CHECKING:
+    from bci.pipeline import BCIPipeline
 from PyQt6.QtWidgets import (
     QFrame, QVBoxLayout, QHBoxLayout, QLabel, QGroupBox, QDoubleSpinBox,
     QComboBox, QLineEdit,
@@ -125,7 +128,7 @@ class EpochPage(QFrame):
                 mapping[name.strip()] = int(code.strip())
         return mapping or None
 
-    def refresh_chart(self, data: Optional['BCIPipeline'] = None):
+    def refresh_chart(self, data: Optional[BCIPipeline] = None):
         self._fig.clear()
         gs = gridspec.GridSpec(2, 1, figure=self._fig, height_ratios=[3, 1],
                               hspace=0.3)
