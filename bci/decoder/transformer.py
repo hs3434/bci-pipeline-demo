@@ -81,8 +81,11 @@ class _RotaryPositionalEmbedding(nn.Module):
     def forward(self, x: torch.Tensor, positions: torch.Tensor) -> torch.Tensor:
         self._build_cache(int(positions.max().item()) + 1,
                           x.device, x.dtype)
-        cos = self._cos[positions].repeat_interleave(2, dim=-1).unsqueeze(0)
-        sin = self._sin[positions].repeat_interleave(2, dim=-1).unsqueeze(0)
+        cos = self._cos
+        sin = self._sin
+        assert cos is not None and sin is not None
+        cos = cos[positions].repeat_interleave(2, dim=-1).unsqueeze(0)
+        sin = sin[positions].repeat_interleave(2, dim=-1).unsqueeze(0)
         return (x * cos) + (self._rotate_half(x) * sin)
 
 
@@ -313,7 +316,7 @@ class TransformerDecoder(Decoder):
             self._mean = X.mean(axis=(0, 2), keepdims=True).astype(np.float32)
             self._std = X.std(axis=(0, 2), keepdims=True).astype(np.float32)
             # Guard against zero-variance channels
-            self._std = np.where(self._std < 1e-8, 1.0, self._std)
+            self._std = np.where(self._std < 1e-8, 1.0, self._std)  # type: ignore[operator]  # self._std is ndarray, not None after assignment above
             X_norm = (X - self._mean) / self._std
         else:
             X_norm = X
@@ -323,6 +326,7 @@ class TransformerDecoder(Decoder):
             d_model=self.d_model, n_heads=self.n_heads, n_layers=self.n_layers,
             kernel=self.kernel, stride=self.stride, dropout=self.dropout,
         ).to(self.device)
+        assert self.model is not None
         opt = optim.AdamW(self.model.parameters(), lr=self.lr,
                           weight_decay=self.weight_decay)
         criterion = nn.CrossEntropyLoss()
@@ -337,7 +341,6 @@ class TransformerDecoder(Decoder):
 
         self.model.train()
         for _ in range(self.epochs):
-            # Shuffle sample indices each epoch
             perm = torch.randperm(n_samples, device=self.device)
             for b in range(n_batches):
                 idx = perm[b * bs:(b + 1) * bs]
@@ -355,6 +358,8 @@ class TransformerDecoder(Decoder):
 
     def predict_proba(self, X: np.ndarray) -> np.ndarray:
         if self.model is None:
+            raise RuntimeError("Must call fit() before predict_proba()")
+        if self.kernel is None or self.stride is None:
             raise RuntimeError("Must call fit() before predict_proba()")
         if X.shape[1] != self.n_channels:
             raise ValueError(
@@ -384,6 +389,8 @@ class TransformerDecoder(Decoder):
         return torch.softmax(logits, dim=-1).cpu().numpy()
 
     def save(self, path: str | Path) -> None:
+        if self.model is None:
+            raise RuntimeError("Must call fit() before save()")
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
         state = {
@@ -433,6 +440,7 @@ class TransformerDecoder(Decoder):
             n_layers=cfg['n_layers'], kernel=cfg['kernel'],
             stride=cfg['stride'], dropout=cfg['dropout'],
         )
+        assert obj.model is not None
         obj.model.load_state_dict(state['model_state'])
         obj.model.eval()
         return obj

@@ -233,7 +233,7 @@ class TransformerBertDecoder(Decoder):
         if self.normalize:
             self._mean = X.mean(axis=(0, 2), keepdims=True).astype(np.float32)
             self._std = X.std(axis=(0, 2), keepdims=True).astype(np.float32)
-            self._std = np.where(self._std < 1e-8, 1.0, self._std)
+            self._std = np.where(self._std < 1e-8, 1.0, self._std)  # type: ignore[operator]  # self._std is ndarray, not None after assignment above
             X_norm = (X - self._mean) / self._std
         else:
             X_norm = X
@@ -243,6 +243,7 @@ class TransformerBertDecoder(Decoder):
             d_model=self.d_model, n_heads=self.n_heads, n_layers=self.n_layers,
             kernel=self.kernel, stride=self.stride, dropout=self.dropout,
         ).to(self.device)
+        assert self.model is not None
         opt = optim.AdamW(self.model.parameters(), lr=self.lr,
                           weight_decay=self.weight_decay)
         criterion = nn.CrossEntropyLoss()
@@ -273,6 +274,8 @@ class TransformerBertDecoder(Decoder):
     def predict_proba(self, X: np.ndarray) -> np.ndarray:
         if self.model is None:
             raise RuntimeError("Must call fit() before predict_proba()")
+        if self.kernel is None or self.stride is None:
+            raise RuntimeError("Must call fit() before predict_proba()")
         if X.shape[1] != self.n_channels:
             raise ValueError(
                 f"n_channels mismatch: expected {self.n_channels}, "
@@ -300,6 +303,8 @@ class TransformerBertDecoder(Decoder):
         return torch.softmax(logits, dim=-1).cpu().numpy()
 
     def save(self, path: str | Path) -> None:
+        if self.model is None:
+            raise RuntimeError("Must call fit() before save()")
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
         state = {
@@ -349,6 +354,7 @@ class TransformerBertDecoder(Decoder):
             n_layers=cfg['n_layers'], kernel=cfg['kernel'],
             stride=cfg['stride'], dropout=cfg['dropout'],
         )
+        assert obj.model is not None
         obj.model.load_state_dict(state['model_state'])
         obj.model.eval()
         return obj

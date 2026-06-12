@@ -65,6 +65,7 @@ class CNNDecoder(Decoder):
 
         self.model = _EEGCNN(n_channels, n_times, self._n_classes,
                              self.dropout).to(self.device)
+        assert self.model is not None
         opt = optim.Adam(self.model.parameters(), lr=self.lr)
         criterion = nn.CrossEntropyLoss()
 
@@ -97,6 +98,8 @@ class CNNDecoder(Decoder):
         return probs.cpu().numpy()
 
     def save(self, path: str | Path) -> None:
+        if self.model is None:
+            raise RuntimeError("Must call fit() before save()")
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
         state = {
@@ -120,6 +123,7 @@ class CNNDecoder(Decoder):
         obj.classes_ = state['classes_']
         n_ch, n_t = obj._input_shape
         obj.model = _EEGCNN(n_ch, n_t, obj._n_classes, obj.dropout)
+        assert obj.model is not None
         obj.model.load_state_dict(state['model_state'])
         obj.model.eval()
         return obj
