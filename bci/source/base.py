@@ -7,7 +7,10 @@ for file-format-agnostic EEG loading.
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Dict, Type
+from typing import TYPE_CHECKING, Dict, Type
+
+if TYPE_CHECKING:
+    from mne.io import Raw
 
 
 class EEGReader(ABC):
@@ -18,7 +21,7 @@ class EEGReader(ABC):
     """
 
     @abstractmethod
-    def read(self, filepath: Path) -> 'mne.io.Raw':
+    def read(self, filepath: Path) -> Raw:
         """Load file and return an MNE Raw object."""
         ...
 

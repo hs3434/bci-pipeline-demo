@@ -5,9 +5,12 @@ real-time EEG acquisition for online/streaming display.
 """
 from __future__ import annotations
 
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import numpy as np
+
+if TYPE_CHECKING:
+    from mne.io import Raw
 
 
 class StreamSource:
@@ -23,9 +26,9 @@ class StreamSource:
         ...     process(chunk)
     """
 
-    def __init__(self, raw: 'mne.io.Raw', chunk_duration: float = 0.1,
+    def __init__(self, raw: Raw, chunk_duration: float = 0.1,
                  filepath: str | None = None):
-        self._raw: 'mne.io.Raw' = raw
+        self._raw: Raw = raw
         self._data = raw.get_data()
         self.sfreq = raw.info['sfreq']
         self.n_channels = raw.info['nchan']
